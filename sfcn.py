@@ -4,8 +4,9 @@ from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePoo
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
-
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+
+import os 
 
 class SFCN():
     def __init__(
@@ -54,6 +55,7 @@ class SFCN():
 
         self.n_conv_layer = len(conv_num_filters)
 
+        os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         with tf.device("gpu:"+str(gpu_index)):
             print("tf.keras will run on GPU: {}".format(gpu_index))
 
@@ -71,7 +73,7 @@ class SFCN():
         for i in range(self.n_conv_layer-1):
             x = Conv3D(
                 filters=self.conv_num_filters[i],
-                kernel_size=self.conv_strides[i],
+                kernel_size=self.conv_kernel_sizes[i],
                 strides=self.conv_strides[i],
                 padding=self.conv_padding[i],
                 name='conv_' + str(i)
