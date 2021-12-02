@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
@@ -20,6 +21,7 @@ class SFCN():
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
+        gpu_index = 1,
         name='SFCN'):
         """[summary]
 
@@ -51,6 +53,9 @@ class SFCN():
         self.name = name
 
         self.n_conv_layer = len(conv_num_filters)
+
+        with tf.device("gpu:"+str(gpu_index)):
+            print("tf.keras will run on GPU: {}".format(gpu_index))
 
         self.build()
         
