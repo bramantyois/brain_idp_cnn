@@ -8,8 +8,8 @@ from tensorflow.keras.utils import Sequence
 class VolumeDataGeneratorRegression(Sequence):
     def __init__(
         self, 
-        sample_list, 
-        dir, 
+        sample_df, 
+        target_df, 
         batch_size=16, 
         shuffle=True, 
         dim=(160, 160, 91), 
@@ -38,14 +38,19 @@ class VolumeDataGeneratorRegression(Sequence):
             [description], by default False
         """
 
-        self.sample_list=sample_list
+        self.sample_df = sample_df
+        self.target_df = target_df
+        
+        self.num_data = len(sample_df.index)
+        
         self.batch_size = batch_size
-        self.shuffle=shuffle
-        self.base_dir=dir
-        self.dim=dim
-        self.num_channels=num_channels
-        self.num_classes=num_reg_classes
-        self.verbose=verbose
+        self.shuffle = shuffle
+        self.base_dir = dir
+        self.dim = dim
+        self.num_channels = num_channels
+        self.num_classes = num_reg_classes
+        self.verbose = verbose        
+        
         self.on_epoch_end()
 
 
@@ -53,7 +58,7 @@ class VolumeDataGeneratorRegression(Sequence):
         """
         Shuffle the indices when shuffle==True. otherwise keep the index order
         """
-        self.indices = np.arange(len(self.sample_list))
+        self.indices = np.arange(self.num_data)
         if self.shuffle:
             np.random.shuffle(self.indices)
 
@@ -62,7 +67,7 @@ class VolumeDataGeneratorRegression(Sequence):
         """
         Return the number of batches per epoch
         """
-        return math.floor(len(self.sample_list)/self.batch_size) 
+        return math.floor(self.num_data/self.batch_size) 
     
     
     def __getitem__(self, index) -> Tuple:
@@ -78,15 +83,17 @@ class VolumeDataGeneratorRegression(Sequence):
         Tuple
             Tuple of data and labels with size of batch_size
         """
-        indices = self.indices[index * self.batch_size: (index+1)*self.batch_size]
-        sample_list = [self.sample_list[i] for i in indices]
+        indices = self.indices[index * self.batch_size: (index+1)*self.batch_size]     
+        
+        paths = [[test.iloc[i]['path'] for i in indices]
 
         # initialize arrays for volumes and labels
-        X = np.zeros((self.batch_size, self.num_channels, *self.dim), dtype=np.float64)
+        X = np.zeros((self.batch_size, *self.dim, self.num_channel), dtype=np.float64)
         Y = np.zeros((self.batch_size, self.num_classes), dtype=np.float64)
 
         for i, ID in enumerate(sample_list):
-            X[i] = np.array(nib.load(self.base_dir +ID).get_fdata()) # this should be (x,y,z,mode)
+ 
+            X[i] = nib.load(paths[i]).get_fdata().reshape((*self.dim,1))
             Y[i] = 0 # implement later
 
         return X, Y

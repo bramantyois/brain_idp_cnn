@@ -31,7 +31,7 @@ def scanfolder(directory, sub_folder, name_wildcard, file_format) -> pd.DataFram
         if (name_wildcard in str(path)) and (sub_folder in str(path)): 
             b = path.stem.split('_')
             paths.append(path)
-            subjects.append(str(b[0]))
+            subjects.append(str(b[0][4:]))
             sessions.append(str(b[1]))
 
     if len(paths) == 0:
@@ -40,10 +40,10 @@ def scanfolder(directory, sub_folder, name_wildcard, file_format) -> pd.DataFram
     else:
         df = pd.DataFrame(
             list(zip(subjects, sessions, paths)),
-            columns =['subject', 'session', 'path'])       
+            columns =['eid', 'session', 'path'])       
         return  df
 
-def train_test_validation_split(data_frame, train_frac=0.6, csv_write_dir=None, csv_prefix='split'):
+def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None, csv_prefix='split'):
     """[summary]
 
     Parameters
@@ -57,7 +57,14 @@ def train_test_validation_split(data_frame, train_frac=0.6, csv_write_dir=None, 
     csv_prefix : str, optional
         [description], by default 'split'
     """
-    df = data_frame.copy()
+    df = data.copy()
+    tr = target.copy()
+    
+    df.set_index('eid')
+    tr.set_index('eid')
+    
+    df = df.loc[tr.index]
+        
     sub_grouped = df.groupby('subject').nunique()
     val_test_df = sub_grouped[sub_grouped['path']==1]
 
