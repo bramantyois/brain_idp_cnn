@@ -96,15 +96,6 @@ def train_test_validation_split(data_frame, train_frac=0.6, csv_write_dir=None, 
 
     return train_df, valid_df, train_df
 
-
-
-        
-
-        
-
-        
-
-
 if __name__ == '__main__':
 
     path = 'D:\Programming\school\labrotations\lab1\data\BIDS'
