@@ -1,4 +1,6 @@
 import tensorflow as tf
+from tensorflow.distribute import MirroredStrategy
+
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
@@ -22,7 +24,7 @@ class SFCN():
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
-        gpu_index = 1,
+        gpu_num = 2,
         name='SFCN'):
         """[summary]
 
@@ -55,11 +57,13 @@ class SFCN():
 
         self.n_conv_layer = len(conv_num_filters)
 
-        os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
-        with tf.device("gpu:"+str(gpu_index)):
-            print("tf.keras will run on GPU: {}".format(gpu_index))
-
-        self.build()
+        gpus = tf.config.list_logical_devices('GPU')[:gpu_num]
+        
+        self.strategy = MirroredStrategy(gpus)
+        
+        #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
+        #with tf.device("gpu:"+str(gpu_index)):
+        #    print("tf.keras will run on GPU: {}".format(gpu_index))
         
 
     def build(self):
@@ -127,14 +131,18 @@ class SFCN():
             optimizer (str, optional): [description]. Defaults to 'adam'.
             loss (str, optional): [description]. Defaults to 'mse'.
         """
-        self.learning_rate = learning_rate
-        if optimizer=='Adam':
-            self.optimizer = Adam(learning_rate=learning_rate)
-        elif optimizer=='SGD':
-            self.optimizer = SGD(learning_rate=learning_rate)
+        
+        with self.strategy.scope():
+            self.build()
 
-        if loss == 'mse':
-            self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
+            self.learning_rate = learning_rate
+            if optimizer=='Adam':
+                self.optimizer = Adam(learning_rate=learning_rate)
+            elif optimizer=='SGD':
+                self.optimizer = SGD(learning_rate=learning_rate)
+
+            if loss == 'mse':
+                self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
 
     
     def train(self, x_train, y_train, batch_size, epochs):
