@@ -25,22 +25,22 @@ def scanfolder(directory, sub_folder, name_wildcard, file_format) -> pd.DataFram
 
     paths = []
     subjects = []
-    sessions = []
+    #sessions = []
 
     for path in Path(directory).rglob('*.'+file_format):
         if (name_wildcard in str(path)) and (sub_folder in str(path)): 
             b = path.stem.split('_')
             paths.append(path)
             subjects.append(str(b[0][4:]))
-            sessions.append(str(b[1]))
+            #sessions.append(str(b[1]))
 
     if len(paths) == 0:
         print('no files found')
         return pd.DataFrame([])
     else:
         df = pd.DataFrame(
-            list(zip(subjects, sessions, paths)),
-            columns =['eid', 'session', 'path'])       
+            list(zip(subjects, paths)),
+            columns =['eid', 'path'])       
         return  df
 
 def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None, csv_prefix='split'):
@@ -57,15 +57,16 @@ def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None
     csv_prefix : str, optional
         [description], by default 'split'
     """
-    df = data.copy()
+    df = data.copy().drop(['session'], axis=1)
     tr = target.copy()
     
-    df.set_index('eid')
-    tr.set_index('eid')
+    df = df.set_index('eid')
+    tr = tr.set_index('eid')
     
     df = df.loc[tr.index]
+    df = df.join(tr)
         
-    sub_grouped = df.groupby('subject').nunique()
+    sub_grouped = df.groupby('eid').nunique()
     val_test_df = sub_grouped[sub_grouped['path']==1]
 
     num_avail_test = len(val_test_df.index)
@@ -83,9 +84,9 @@ def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None
     test_list = val_test_df[:num_test].index.to_list()
     val_list = val_test_df[num_test:num_test+num_val].index.to_list()
     
-    test_df = df[df['subject'].isin(test_list)]
-    valid_df = df[df['subject'].isin(val_list)]
-    train_df = df[~df['subject'].isin(test_list+val_list)]
+    test_df = df.loc[test_list]
+    valid_df = df.loc[val_list]
+    train_df = df.loc[~df.index.isin(test_list+val_list)]
 
     # writing csv
     if csv_write_dir==None:
@@ -97,9 +98,9 @@ def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None
     valid_path = csv_write_dir.joinpath(csv_prefix + '_valid.csv')
     train_path = csv_write_dir.joinpath(csv_prefix + '_train.csv')
 
-    test_df.to_csv(test_path, index=False)
-    valid_df.to_csv(valid_path, index=False)
-    train_df.to_csv(train_path, index=False) 
+    test_df.to_csv(test_path)
+    valid_df.to_csv(valid_path)
+    train_df.to_csv(train_path) 
 
     return train_df, valid_df, train_df
 
