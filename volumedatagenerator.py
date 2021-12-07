@@ -44,7 +44,6 @@ class VolumeDataGeneratorRegression(Sequence):
         
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.base_dir = dir
         self.dim = dim
         self.num_channels = num_channels
         self.num_classes = num_reg_classes
@@ -87,14 +86,13 @@ class VolumeDataGeneratorRegression(Sequence):
         # paths = [self.sample_df.iloc[i] for i in indices]
 
         # initialize arrays for volumes and labels
-        X = np.zeros((self.batch_size, *self.dim, self.num_channel), dtype=np.float64)
-        Y = np.zeros((self.batch_size, self.num_classes), dtype=np.float64)
+        X = np.zeros((self.batch_size, *self.dim, self.num_channels), dtype=np.float32)
+        Y = np.zeros((self.batch_size, self.num_classes), dtype=np.float32)
 
         for i in range(0, self.batch_size):
             
-            idx = indices[i]
-
-            X[i] = nib.load(self.sample_df.iloc[idx]['path']).get_fdata().reshape((*self.dim,1))
+            idx = indices[i]            
+            X[i] = nib.load(self.sample_df.iloc[idx]).get_fdata().reshape((*self.dim,1))
             Y[i] = self.target_df.iloc[idx].to_numpy()
 
         return X, Y

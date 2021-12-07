@@ -121,6 +121,19 @@ class SFCN():
         
         self.model = Model(model_input, model_output)
         self.model.summary()
+        
+        
+        # building callbacks
+        checkpoint_filepath = '/tmp/checkpoint'
+        self.callbacks =  [
+            EarlyStopping(patience=3),
+            ModelCheckpoint(
+                filepath=checkpoint_filepath,
+                save_weights_only=True,
+                monitor='val_mae',
+                mode='min',
+                save_best_only=True)]
+
 
 
     def compile(self, learning_rate, optimizer='Adam', loss = 'mse'):
@@ -155,12 +168,7 @@ class SFCN():
             epochs ([type]): [description]
         """
 
-        callbacks = [
-            EarlyStopping(patience=5),
-            # ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5')
-        ]
-
-        self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=callbacks, validation_split=0.4)
+        self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
 
 
     def train_generator(self, train_generator, valid_generator, batch_size, epochs):
@@ -172,12 +180,8 @@ class SFCN():
             batch_size ([type]): [description]
             epochs ([type]): [description]
         """
-        callbacks = [
-            EarlyStopping(patience=2),
-            ModelCheckpoint(filepath='model.{epoch:02d}-{val_loss:.2f}.h5')
-        ]
 
-        self.model.fit(x=train_generator, validation_data=valid_generator, batch_size=batch_size, epochs=epochs, callbacks=callbacks)
+        self.model.fit(x=train_generator, validation_data=valid_generator, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks)
 
 
     def load_weights(self, filepath):
