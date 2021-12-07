@@ -9,7 +9,6 @@ class VolumeDataGeneratorRegression(Sequence):
     def __init__(
         self, 
         sample_df, 
-        target_df, 
         batch_size=16, 
         shuffle=True, 
         dim=(160, 160, 91), 
@@ -38,8 +37,8 @@ class VolumeDataGeneratorRegression(Sequence):
             [description], by default False
         """
 
-        self.sample_df = sample_df
-        self.target_df = target_df
+        self.sample_df = sample_df['path']
+        self.target_df = sample_df.drop('path',axis=1)
         
         self.num_data = len(sample_df.index)
         
@@ -85,16 +84,18 @@ class VolumeDataGeneratorRegression(Sequence):
         """
         indices = self.indices[index * self.batch_size: (index+1)*self.batch_size]     
         
-        paths = [[test.iloc[i]['path'] for i in indices]
+        # paths = [self.sample_df.iloc[i] for i in indices]
 
         # initialize arrays for volumes and labels
         X = np.zeros((self.batch_size, *self.dim, self.num_channel), dtype=np.float64)
         Y = np.zeros((self.batch_size, self.num_classes), dtype=np.float64)
 
-        for i, ID in enumerate(sample_list):
- 
-            X[i] = nib.load(paths[i]).get_fdata().reshape((*self.dim,1))
-            Y[i] = 0 # implement later
+        for i in range(0, self.batch_size):
+            
+            idx = indices[i]
+
+            X[i] = nib.load(self.sample_df.iloc[idx]['path']).get_fdata().reshape((*self.dim,1))
+            Y[i] = self.target_df.iloc[idx].to_numpy()
 
         return X, Y
             
