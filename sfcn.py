@@ -124,7 +124,7 @@ class SFCN():
         
         
         # building callbacks
-        checkpoint_filepath = '/tmp/checkpoint'
+        checkpoint_filepath = 'weights/checkpoint_'+self.name
         self.callbacks =  [
             EarlyStopping(patience=3),
             ModelCheckpoint(
@@ -185,7 +185,9 @@ class SFCN():
 
 
     def load_weights(self, filepath):
-        self.model.load_weights(filepath=filepath)
+        with self.strategy.scope():
+            #self.build()
+            self.model.load_weights(filepath=filepath)
 
 
     def predict(self, x):

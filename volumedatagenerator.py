@@ -14,6 +14,7 @@ class VolumeDataGeneratorRegression(Sequence):
         dim=(160, 160, 91), 
         num_channels=1,
         num_reg_classes=1,
+        normalization='min_max',
         verbose=False):
         """Volume data generator for regression task
 
