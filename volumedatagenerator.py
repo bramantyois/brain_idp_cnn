@@ -1,8 +1,12 @@
 from typing import Tuple
 import nibabel as nib
+
 import numpy as np
+import pandas as pd
+
 import math
 from tensorflow.keras.utils import Sequence
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 class VolumeDataGeneratorRegression(Sequence):
@@ -14,15 +18,14 @@ class VolumeDataGeneratorRegression(Sequence):
         dim=(160, 160, 91), 
         num_channels=1,
         num_reg_classes=1,
-        normalization='min_max',
+        output_preprocessing='none',
+        output_scaler=None,
         verbose=False):
-        """Volume data generator for regression task
+        """[summary]
 
         Parameters
         ----------
-        sample_list : [type]
-            [description]
-        dir : [type]
+        sample_df : [type]
             [description]
         batch_size : int, optional
             [description], by default 16
@@ -34,6 +37,8 @@ class VolumeDataGeneratorRegression(Sequence):
             [description], by default 1
         num_reg_classes : int, optional
             [description], by default 1
+        output_preprocessing : str, optional
+            [description], by default 'none'
         verbose : bool, optional
             [description], by default False
         """
@@ -49,8 +54,35 @@ class VolumeDataGeneratorRegression(Sequence):
         self.num_channels = num_channels
         self.num_classes = num_reg_classes
         self.verbose = verbose        
+
+        self.output_preprocessing = output_preprocessing
+        self.output_scaler_inst = output_scaler
         
+        self.preprocess_output()
         self.on_epoch_end()
+
+
+    def preprocess_output(self):
+        """output label preprocessing
+        """
+        if self.output_scaler_inst==None:
+            if self.output_preprocessing == 'standard':
+                self.output_scaler_inst = StandardScaler()
+                
+            elif self.output_preprocessing == 'minmax':
+                self.output_scaler_inst = StandardScaler()
+                
+            if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax':
+                transformed  = self.output_scaler_inst.fit_transform(self.target_df)
+                self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
+            
+        else:
+            transformed  = self.output_scaler_inst.fit_transform(self.target_df)
+            self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
+    
+
+    def get_scaler_instance(self):
+        return self.output_scaler_inst
 
 
     def on_epoch_end(self):
