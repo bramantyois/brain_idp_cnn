@@ -64,7 +64,20 @@ class SFCN():
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
-        
+
+    # def calculate_size(self):
+    #     self.out_size_x = []
+    #     self.out_size_y = []
+    #     self.out_size_z = []
+    #     cur_size = self.input_dim
+    #     for i in range(len(self.conv_kernel_sizes)):
+    #         if self.conv_padding=='same':
+    #             x = cur_size[i] - self.conv_kernel_sizes[i] + 2 * 
+
+            
+
+            
+
 
     def build(self):
         """[summary]
@@ -103,7 +116,7 @@ class SFCN():
        
         x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
 
-        avg_shape = [5, 6, 5] # ! this should not be hardcoded
+        avg_shape = x.shape.as_list()[1:-1]
         x = AveragePooling3D(pool_size=avg_shape, name='avgpool_1')(x)
 
         if self.dropout:
