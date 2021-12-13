@@ -1,6 +1,4 @@
 import tensorflow as tf
-from tensorflow.distribute import MirroredStrategy
-
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
@@ -8,7 +6,13 @@ from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 
+from tensorflow.distribute import MirroredStrategy
+
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
 import os 
+from pathlib import Path
+
 
 class SFCN():
     def __init__(
@@ -19,7 +23,8 @@ class SFCN():
         conv_kernel_sizes, 
         conv_strides,
         conv_padding, 
-        maxpool_size,
+        pooling_size,
+        pooling_type,
         batch_norm=True,
         dropout=True,
         dropout_rate=0.5,
@@ -28,17 +33,36 @@ class SFCN():
         name='SFCN'):
         """[summary]
 
-        Args:
-            input_dim ([type]): [description]
-            conv_num_filters ([type]): [description]
-            conv_kernel_sizes ([type]): [description]
-            conv_strides ([type]): [description]
-            conv_padding ([type]): [description]
-            maxpool_size ([type]): [description]
-            batch_norm (bool, optional): [description]. Defaults to True.
-            dropout (bool, optional): [description]. Defaults to True.
-            dropout_rate (float, optional): [description]. Defaults to 0.5.
-            softmax (bool, optional): [description]. Defaults to True.
+        Parameters
+        ----------
+        input_dim : [type]
+            [description]
+        output_dim : [type]
+            [description]
+        conv_num_filters : [type]
+            [description]
+        conv_kernel_sizes : [type]
+            [description]
+        conv_strides : [type]
+            [description]
+        conv_padding : [type]
+            [description]
+        pooling_size : [type]
+            [description]
+        pooling_type : [type]
+            [description]
+        batch_norm : bool, optional
+            [description], by default True
+        dropout : bool, optional
+            [description], by default True
+        dropout_rate : float, optional
+            [description], by default 0.5
+        softmax : bool, optional
+            [description], by default False
+        gpu_num : int, optional
+            [description], by default 2
+        name : str, optional
+            [description], by default 'SFCN'
         """
         
         self.input_dim = input_dim
@@ -47,7 +71,8 @@ class SFCN():
         self.conv_kernel_sizes = conv_kernel_sizes
         self.conv_strides = conv_strides
         self.conv_padding = conv_padding
-        self.maxpool_size = maxpool_size
+        self.pooling_size = pooling_size
+        self.pooling_type = pooling_type
         self.batch_norm = batch_norm
         self.dropout = dropout
         self.dropout_rate = dropout_rate
@@ -64,19 +89,6 @@ class SFCN():
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
-
-    # def calculate_size(self):
-    #     self.out_size_x = []
-    #     self.out_size_y = []
-    #     self.out_size_z = []
-    #     cur_size = self.input_dim
-    #     for i in range(len(self.conv_kernel_sizes)):
-    #         if self.conv_padding=='same':
-    #             x = cur_size[i] - self.conv_kernel_sizes[i] + 2 * 
-
-            
-
-            
 
 
     def build(self):
@@ -99,7 +111,10 @@ class SFCN():
             if self.batch_norm:
                 x = BatchNormalization(name='batchnorm_' + str(i))(x)
 
-            x = MaxPooling3D(pool_size=self.maxpool_size[i], name='maxpool_' + str(i))(x)
+            if self.pooling_type[i] == 'avg_pool':
+                x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
+            else:
+                x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
             x = Activation('relu', name='activation_' + str(i))(x)
 
@@ -205,10 +220,44 @@ class SFCN():
 
 
     def load_weights(self, filepath):
+        """[summary]
+
+        Parameters
+        ----------
+        filepath : [type]
+            [description]
+        """
         with self.strategy.scope():
-            #self.build()
             self.model.load_weights(filepath=filepath)
 
 
     def predict(self, x):
         return self.model.predict(x)
+
+    def evaluate_generator(self, x_generator, batch_size, workers=4):
+        ### todo
+        y_pred = self.predict(
+            x = x_generator,
+            batch_size=batch_size, 
+            workers=workers)
+
+        y_true = x_generator.get_labels()
+
+        assert(y_pred.shape == y_true.shape)
+
+        r2 = r2_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
+        mse = mean_squared_error(y_true, y_pred)
+
+        filedir = Path.cwd().joinpath('results')
+        filedir.mkdir(parents=True, exist_ok=True)
+
+        if filedir.joinpath(self.name +'.csv').is_file:
+            df = pd.read_csv(filedir)
+
+
+
+
+
+
+        

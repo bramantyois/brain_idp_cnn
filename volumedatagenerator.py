@@ -87,6 +87,10 @@ class VolumeDataGeneratorRegression(Sequence):
     def get_scaler_instance(self):
         return self.output_scaler_inst
 
+    def get_labels(self):
+        """return the whole labels of the generator
+        """
+        return self.target_df.to_numpy()
 
     def on_epoch_end(self):
         """
