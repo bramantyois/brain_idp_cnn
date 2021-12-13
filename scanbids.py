@@ -102,7 +102,7 @@ def train_test_validation_split(data, target, train_frac=0.6, csv_write_dir=None
     valid_df.to_csv(valid_path)
     train_df.to_csv(train_path) 
 
-    return train_df, valid_df, train_df
+    return train_df, valid_df, test_df
 
 if __name__ == '__main__':
 

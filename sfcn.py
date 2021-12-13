@@ -171,7 +171,7 @@ class SFCN():
         self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
 
 
-    def train_generator(self, train_generator, valid_generator, batch_size, epochs):
+    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4):
         """[summary]
 
         Args:
@@ -179,9 +179,16 @@ class SFCN():
             valid_generator ([type]): [description]
             batch_size ([type]): [description]
             epochs ([type]): [description]
+            workers (int, optional): [description]. Defaults to 4.
         """
 
-        self.model.fit(x=train_generator, validation_data=valid_generator, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks)
+        self.model.fit(
+            x=train_generator, 
+            validation_data=valid_generator, 
+            batch_size=batch_size, 
+            epochs=epochs, 
+            callbacks=self.callbacks,
+            workers=workers)
 
 
     def load_weights(self, filepath):

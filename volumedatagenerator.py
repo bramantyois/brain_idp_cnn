@@ -6,7 +6,7 @@ import pandas as pd
 
 import math
 from tensorflow.keras.utils import Sequence
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, QuantileTransformer
 
 
 class VolumeDataGeneratorRegression(Sequence):
@@ -70,9 +70,12 @@ class VolumeDataGeneratorRegression(Sequence):
                 self.output_scaler_inst = StandardScaler()
                 
             elif self.output_preprocessing == 'minmax':
-                self.output_scaler_inst = StandardScaler()
+                self.output_scaler_inst = MinMaxScaler()
+
+            elif self.output_preprocessing =='quantile':
+                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000)
                 
-            if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax':
+            if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax' or self.output_preprocessing == 'quantile':
                 transformed  = self.output_scaler_inst.fit_transform(self.target_df)
                 self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
             
