@@ -5,13 +5,15 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-
 from tensorflow.distribute import MirroredStrategy
+
+import pandas as pd
 
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 import os 
 from pathlib import Path
+from datetime import date
 
 
 class SFCN():
@@ -30,6 +32,7 @@ class SFCN():
         dropout_rate=0.5,
         softmax=False,
         gpu_num = 2,
+        use_float16=False,
         name='SFCN'):
         """[summary]
 
@@ -77,13 +80,14 @@ class SFCN():
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
-
         self.name = name
 
         self.n_conv_layer = len(conv_num_filters)
 
-        gpus = tf.config.list_logical_devices('GPU')[:gpu_num]
-        
+        if use_float16:
+            tf.keras.mixed_precision.set_global_policy("mixed_float16") 
+
+        gpus = tf.config.list_logical_devices('GPU')[:gpu_num]        
         self.strategy = MirroredStrategy(gpus)
         
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
@@ -132,7 +136,7 @@ class SFCN():
         x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
 
         avg_shape = x.shape.as_list()[1:-1]
-        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_1')(x)
+        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_1'+ str(self.n_conv_layer-1))(x)
 
         if self.dropout:
             x = Dropout(rate=self.dropout_rate)(x)
@@ -154,14 +158,13 @@ class SFCN():
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
         self.callbacks =  [
-            EarlyStopping(patience=3),
+            EarlyStopping(patience=16),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,
                 monitor='val_mae',
                 mode='min',
                 save_best_only=True)]
-
 
 
     def compile(self, learning_rate, optimizer='Adam', loss = 'mse'):
@@ -196,10 +199,12 @@ class SFCN():
             epochs ([type]): [description]
         """
 
-        self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
+        self.history = self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
+
+        self.save_history()
 
 
-    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4):
+    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4, queue_size=16):
         """[summary]
 
         Args:
@@ -210,13 +215,16 @@ class SFCN():
             workers (int, optional): [description]. Defaults to 4.
         """
 
-        self.model.fit(
+        self.history = self.model.fit(
             x=train_generator, 
             validation_data=valid_generator, 
             batch_size=batch_size, 
             epochs=epochs, 
             callbacks=self.callbacks,
-            workers=workers)
+            workers=workers,
+            max_queue_size=queue_size)
+        
+        self.save_history()   
 
 
     def load_weights(self, filepath):
@@ -234,27 +242,49 @@ class SFCN():
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, workers=4):
-        ### todo
-        y_pred = self.predict(
+    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=16):
+        y_pred = self.model.predict(
             x = x_generator,
             batch_size=batch_size, 
-            workers=workers)
+            workers=workers,
+            max_queue_size=queue_size)
 
-        y_true = x_generator.get_labels()
-
-        assert(y_pred.shape == y_true.shape)
+        # Batching leaves some samples out, so we should throw y_true labels out too
+        y_true = x_generator.get_labels()[:y_pred.shape[0],:]
 
         r2 = r2_score(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
         mse = mean_squared_error(y_true, y_pred)
+        today = date.today()
+
+        if filename==None:
+            filename=self.name
 
         filedir = Path.cwd().joinpath('results')
         filedir.mkdir(parents=True, exist_ok=True)
+        fn = filedir.joinpath(filename +'.csv')
 
-        if filedir.joinpath(self.name +'.csv').is_file:
-            df = pd.read_csv(filedir)
+        if fn.exists():
+            entry ={'date':today, 'r2':r2, 'mae':mae, 'mse':mse }
+            df = pd.read_csv(fn)    
+            df = df.append(entry, ignore_index=True)
+        else:
+            columns = ['date','r2','mae','mse']
+            df = pd.DataFrame([[today, r2, mae, mse]], columns=columns)
 
+        df.to_csv(fn, index=False)
+
+
+    def get_history(self):
+        return self.history
+
+    def save_history(self):
+        filedir = Path.cwd().joinpath('history')
+        filedir.mkdir(parents=True, exist_ok=True)
+        fn = filedir.joinpath(self.name+'_hist.csv')
+
+        df = pd.DataFrame(self.history.history)
+        df.to_csv(fn, index=False)
 
 
 

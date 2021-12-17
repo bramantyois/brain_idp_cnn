@@ -17,7 +17,7 @@ class VolumeDataGeneratorRegression(Sequence):
         shuffle=True, 
         dim=(160, 160, 91), 
         num_channels=1,
-        num_reg_classes=1,
+        # num_reg_classes=1,
         output_preprocessing='none',
         output_scaler=None,
         verbose=False):
@@ -42,17 +42,20 @@ class VolumeDataGeneratorRegression(Sequence):
         verbose : bool, optional
             [description], by default False
         """
+        #sample_df = sample_df.copy().dropna()
 
         self.sample_df = sample_df['path']
         self.target_df = sample_df.drop('path',axis=1)
         
+        # print(self.target_df.shape)
+
         self.num_data = len(sample_df.index)
         
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.dim = dim
         self.num_channels = num_channels
-        self.num_classes = num_reg_classes
+        self.num_classes = len(self.target_df.columns)
         self.verbose = verbose        
 
         self.output_preprocessing = output_preprocessing
@@ -80,8 +83,12 @@ class VolumeDataGeneratorRegression(Sequence):
                 self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
             
         else:
-            transformed  = self.output_scaler_inst.fit_transform(self.target_df)
+            transformed  = self.output_scaler_inst.transform(self.target_df)
             self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
+        
+        if (self.target_df.isnull().values.any()):
+            print('nan trget found')
+            # to do remove nan entries
     
 
     def get_scaler_instance(self):
