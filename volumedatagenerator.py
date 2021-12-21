@@ -97,7 +97,7 @@ class VolumeDataGeneratorRegression(Sequence):
     def get_labels(self):
         """return the whole labels of the generator
         """
-        return self.target_df.to_numpy()
+        return self.target_df.iloc[self.indices].to_numpy()
 
     def on_epoch_end(self):
         """

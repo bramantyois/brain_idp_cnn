@@ -204,7 +204,7 @@ class SFCN():
         self.save_history()
 
 
-    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4, queue_size=16):
+    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4, queue_size=32):
         """[summary]
 
         Args:
@@ -242,7 +242,7 @@ class SFCN():
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=16):
+    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=32):
         y_pred = self.model.predict(
             x = x_generator,
             batch_size=batch_size, 
