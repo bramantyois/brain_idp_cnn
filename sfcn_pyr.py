@@ -14,8 +14,8 @@ def main(argv):
     name = 'sfcn_pyramid'
     index=int(argv[0])
 
-    batch_size = 6
-    gpu_num = 6
+    batch_size = 8
+    gpu_num = 8
     cpu_workers = 8
     epochs_num = 64
 

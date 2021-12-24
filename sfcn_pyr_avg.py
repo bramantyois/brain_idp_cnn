@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from sfcn import SFCN
 import numpy as np
 import pandas as pd
@@ -7,11 +11,11 @@ import matplotlib.pyplot as plt
 import sys
 
 def main(argv):
-    name = 'sfcn_vanilla'
+    name = 'sfcn_pyramid_avg'
     index=int(argv[0])
 
     batch_size = 8
-    gpu_num = 8
+    gpu_num = 4
     cpu_workers = 8
     epochs_num = 64
 
@@ -51,17 +55,18 @@ def main(argv):
     model = SFCN(
             input_dim=[182, 218, 182, 1], 
             output_dim=num_output,
-            conv_num_filters=[32, 64, 128, 256, 256, 64], 
+            conv_num_filters=[32, 64, 64, 128, 256, 256], 
             conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             pooling_size=[2, 2, 2, 2, 2],
-            pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+            pooling_type=['avg_pool', 'avg_pool', 'avg_pool', 'avg_pool', 'avg_pool'],
             batch_norm=True,
             dropout=False,
             softmax=False,
             gpu_num=gpu_num,
-            name=name+'_'+str(index),
+            use_float16=True,
+            name=name+'_'+str(index)
             )
     model.compile(learning_rate=3e-4)
 

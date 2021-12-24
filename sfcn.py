@@ -136,12 +136,12 @@ class SFCN():
         x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
 
         avg_shape = x.shape.as_list()[1:-1]
-        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_1'+ str(self.n_conv_layer-1))(x)
+        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_'+ str(self.n_conv_layer))(x)
 
         if self.dropout:
             x = Dropout(rate=self.dropout_rate)(x)
 
-        x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer + 1))(x)
+        x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer))(x)
         
         x = Flatten()(x)
         if self.softmax:
@@ -222,7 +222,8 @@ class SFCN():
             epochs=epochs, 
             callbacks=self.callbacks,
             workers=workers,
-            max_queue_size=queue_size)
+            max_queue_size=queue_size,
+            verbose=2)
         
         self.save_history()   
 
