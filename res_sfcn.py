@@ -14,9 +14,9 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import os 
 from pathlib import Path
 from datetime import date
+import math
 
-
-class SFCN():
+class ResSFCN():
     def __init__(
         self,
         input_dim,
@@ -27,13 +27,14 @@ class SFCN():
         conv_padding, 
         pooling_size,
         pooling_type,
+        res_pooling,
         batch_norm=True,
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
         gpu_num = 2,
         use_float16=False,
-        name='SFCN'):
+        name='RESSFCN'):
         """[summary]
 
         Parameters
@@ -80,7 +81,9 @@ class SFCN():
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
+        self.res_pooling = res_pooling
         self.name = name
+
 
         self.n_conv_layer = len(conv_num_filters)
 
@@ -98,12 +101,16 @@ class SFCN():
     def build(self):
         """[summary]
         """
+        input_copy = list()
+        residuals = list()
         # Building model
         model_input = Input(shape=self.input_dim, name='input')
-        
+
         x = model_input 
 
-        for i in range(self.n_conv_layer-1):
+        n_half = int(math.ceil(0.5*(self.n_conv_layer-1)))
+
+        for i in range(n_half):
             x = Conv3D(
                 filters=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
@@ -120,6 +127,36 @@ class SFCN():
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
+            x = Activation('relu', name='activation_' + str(i))(x)
+
+            input_copy.append(x)
+
+        
+
+        for i in range(n_half, self.n_conv_layer-1):
+            x = Conv3D(
+                filters=self.conv_num_filters[i],
+                kernel_size=self.conv_kernel_sizes[i],
+                strides=self.conv_strides[i],
+                padding=self.conv_padding[i],
+                name='conv_' + str(i)
+                )(x)
+            
+            if self.batch_norm:
+                x = BatchNormalization(name='batchnorm_' + str(i))(x)
+
+            if self.pooling_type[i] == 'avg_pool':
+                x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
+            else:
+                x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
+
+            #now adding residuals
+            cur_shape = x.shape.as_list()[1:-1]
+            
+
+
+            
+            # relu at the end of the block
             x = Activation('relu', name='activation_' + str(i))(x)
 
         x = Conv3D(
