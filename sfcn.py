@@ -245,7 +245,10 @@ class SFCN():
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=32):
+    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=None):
+        if queue_size==None:
+            queue_size=batch_size
+
         y_pred = self.model.predict(
             x = x_generator,
             batch_size=batch_size, 

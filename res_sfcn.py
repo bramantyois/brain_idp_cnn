@@ -1,6 +1,7 @@
+from re import S
 import tensorflow as tf
 from tensorflow import keras 
-from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
+from tensorflow.keras.layers import Add, Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
@@ -16,6 +17,7 @@ from pathlib import Path
 from datetime import date
 import math
 
+
 class ResSFCN():
     def __init__(
         self,
@@ -27,7 +29,7 @@ class ResSFCN():
         conv_padding, 
         pooling_size,
         pooling_type,
-        res_pooling,
+        res_pooling=True,
         batch_norm=True,
         dropout=True,
         dropout_rate=0.5,
@@ -96,7 +98,7 @@ class ResSFCN():
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
-
+    
 
     def build(self):
         """[summary]
@@ -108,7 +110,7 @@ class ResSFCN():
 
         x = model_input 
 
-        n_half = int(math.ceil(0.5*(self.n_conv_layer-1)))
+        n_half = int(math.floor(0.5*(self.n_conv_layer-1)))
 
         for i in range(n_half):
             x = Conv3D(
@@ -151,10 +153,25 @@ class ResSFCN():
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
             #now adding residuals
+            res = input_copy[n_half-i-1]
+
             cur_shape = x.shape.as_list()[1:-1]
-            
+            res_shape = res.shape.as_list()[1:-1]
 
+            pool_shape = get_residuals_pool_shape(res_shape, cur_shape)
 
+            res_num_fil = x.shape.as_list()[-1]
+            if self.res_pooling:
+                res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
+                res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
+            else:
+                # to be implemented
+                res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
+                res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
+                # pool_shape = [x+1 for x in pool_shape]
+                # res = Conv3D(filters=res_num_fil, kernel_size=1, strides=pool_shape, padding='valid', name='res_conv_'+str(i))(res)
+
+            x = Add()([x, res])
             
             # relu at the end of the block
             x = Activation('relu', name='activation_' + str(i))(x)
@@ -282,7 +299,10 @@ class ResSFCN():
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=32):
+    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=None):
+        if queue_size==None:
+            queue_size=batch_size
+
         y_pred = self.model.predict(
             x = x_generator,
             batch_size=batch_size, 
@@ -326,8 +346,12 @@ class ResSFCN():
         df = pd.DataFrame(self.history.history)
         df.to_csv(fn, index=False)
 
-
-
-
-
         
+def get_residuals_pool_shape(input_shape, output_shape):
+    shape = list()
+
+    for i in range(len(input_shape)):
+        x = int(math.floor(input_shape[i]/output_shape[i]))
+        shape.append(x)
+
+    return x

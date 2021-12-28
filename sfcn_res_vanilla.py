@@ -2,7 +2,7 @@
 # coding: utf-8
 
 
-from sfcn import SFCN
+from res_sfcn import ResSFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
@@ -10,12 +10,12 @@ import matplotlib.pyplot as plt
 
 import sys
 
-def main(argv):
-    name = 'sfcn_pyramid'
-    index=int(argv[0])
+def main(idx):
+    name = 'sfcn_res_vanilla'
+    index=int(idx)
 
     batch_size = 8
-    gpu_num = 4
+    gpu_num = 8
     cpu_workers = 8
     epochs_num = 64
 
@@ -52,7 +52,7 @@ def main(argv):
         shuffle=False
     )
 
-    model = SFCN(
+    model = ResSFCN(
             input_dim=[182, 218, 182, 1], 
             output_dim=num_output,
             conv_num_filters=[32, 64, 64, 128, 256, 256], 
@@ -77,4 +77,5 @@ def main(argv):
     model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
 if __name__=='__main__':
-    main(sys.argv[1:])
+    for i in range(int(sys.argv[1])): 
+        main(i)
