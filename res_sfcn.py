@@ -17,6 +17,22 @@ from pathlib import Path
 from datetime import date
 import math
 
+def get_residuals_pool_shape(input_shape, output_shape):
+    shape = list()
+
+    for i in range(len(input_shape)):
+        x = int(math.floor(input_shape[i]/output_shape[i]))
+        shape.append(x)
+
+    return x
+
+
+def is_odd(val):
+    if val%2==0:
+        return False
+    else:
+        return True
+
 
 class ResSFCN():
     def __init__(
@@ -111,6 +127,10 @@ class ResSFCN():
         x = model_input 
 
         n_half = int(math.floor(0.5*(self.n_conv_layer-1)))
+        if is_odd(n_half):
+            num_skip = n_half-1
+        else:
+            num_skip = n_half        
 
         for i in range(n_half):
             x = Conv3D(
@@ -132,7 +152,6 @@ class ResSFCN():
             x = Activation('relu', name='activation_' + str(i))(x)
 
             input_copy.append(x)
-
         
 
         for i in range(n_half, self.n_conv_layer-1):
@@ -152,29 +171,29 @@ class ResSFCN():
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
-            #now adding residuals
-            res = input_copy[n_half-i-1]
+            if (self.n_conv_layer-i-1 <= num_skip):
+                #now adding residuals
+                res = input_copy[n_half-i-1]
 
-            cur_shape = x.shape.as_list()[1:-1]
-            res_shape = res.shape.as_list()[1:-1]
+                cur_shape = x.shape.as_list()[1:-1]
+                res_shape = res.shape.as_list()[1:-1]
 
-            pool_shape = get_residuals_pool_shape(res_shape, cur_shape)
+                pool_shape = get_residuals_pool_shape(res_shape, cur_shape)
 
-            res_num_fil = x.shape.as_list()[-1]
-            if self.res_pooling:
-                res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-            else:
-                # to be implemented
-                res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-                # pool_shape = [x+1 for x in pool_shape]
-                # res = Conv3D(filters=res_num_fil, kernel_size=1, strides=pool_shape, padding='valid', name='res_conv_'+str(i))(res)
+                res_num_fil = x.shape.as_list()[-1]
+                if self.res_pooling:
+                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
+                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
+                else:
+                    # to be implemented
+                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
+                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
+                    # res = Conv3D(filters=res_num_fil, kernel_size=1, strides=pool_shape, padding='valid', name='res_conv_'+str(i))(res)
 
-            x = Add()([x, res])
-            
-            # relu at the end of the block
-            x = Activation('relu', name='activation_' + str(i))(x)
+                x = Add()([x, res])
+                
+                # relu at the end of the block
+                x = Activation('relu', name='activation_' + str(i))(x)
 
         x = Conv3D(
             filters=self.conv_num_filters[-1],
@@ -347,11 +366,3 @@ class ResSFCN():
         df.to_csv(fn, index=False)
 
         
-def get_residuals_pool_shape(input_shape, output_shape):
-    shape = list()
-
-    for i in range(len(input_shape)):
-        x = int(math.floor(input_shape[i]/output_shape[i]))
-        shape.append(x)
-
-    return x
