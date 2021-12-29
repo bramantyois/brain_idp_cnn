@@ -127,11 +127,8 @@ class ResSFCN():
         x = model_input 
 
         n_half = int(math.floor(0.5*(self.n_conv_layer-1)))
-        if is_odd(n_half):
-            num_skip = n_half-1
-        else:
-            num_skip = n_half        
-
+    
+        # first half convolutions
         for i in range(n_half):
             x = Conv3D(
                 filters=self.conv_num_filters[i],
@@ -149,11 +146,11 @@ class ResSFCN():
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
-            x = Activation('relu', name='activation_' + str(i))(x)
-
             input_copy.append(x)
-        
 
+            x = Activation('relu', name='activation_' + str(i))(x)
+   
+        # last half convolutions
         for i in range(n_half, self.n_conv_layer-1):
             x = Conv3D(
                 filters=self.conv_num_filters[i],
@@ -171,9 +168,10 @@ class ResSFCN():
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
-            if (self.n_conv_layer-i-1 <= num_skip):
+            res_idx =  self.n_conv_layer-i-1 
+            if (res_idx <= n_half):
                 #now adding residuals
-                res = input_copy[n_half-i-1]
+                res = input_copy[n_half-1-res_idx]
 
                 cur_shape = x.shape.as_list()[1:-1]
                 res_shape = res.shape.as_list()[1:-1]
@@ -192,8 +190,8 @@ class ResSFCN():
 
                 x = Add()([x, res])
                 
-                # relu at the end of the block
-                x = Activation('relu', name='activation_' + str(i))(x)
+            # relu at the end of the block
+            x = Activation('relu', name='activation_' + str(i))(x)
 
         x = Conv3D(
             filters=self.conv_num_filters[-1],
