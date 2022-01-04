@@ -8,6 +8,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoa
 from tensorflow.distribute import MirroredStrategy
 
 import pandas as pd
+import numpy as np
 
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
@@ -158,7 +159,7 @@ class SFCN():
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
         self.callbacks =  [
-            EarlyStopping(patience=16),
+            # EarlyStopping(patience=32),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,
@@ -255,8 +256,8 @@ class SFCN():
             workers=workers,
             max_queue_size=queue_size)
 
-        # Batching leaves some samples out, so we should throw y_true labels out too
-        y_true = x_generator.get_labels()[:y_pred.shape[0],:]
+        # aggregated r2 score
+        y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too
 
         r2 = r2_score(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
@@ -280,6 +281,25 @@ class SFCN():
 
         df.to_csv(fn, index=False)
 
+        # individual r2 score
+        num_class = y_true.shape[1]
+                
+        multi_result = list
+        for i in range(num_class):
+            multi_result.append(r2_score(y_true[:,i], y_pred[:,i]))
+        
+        labels = x_generator.get_column_labels()
+                  
+        mcfn = filedir.joinpath(filename + '_multi.csv')
+
+        if mcfn.exists():
+            entry = dict(zip(labels, multi_result))
+            df = pd.read_csv(mcfn)
+            df = df.append(entry, ignore_index=True)
+        else: 
+            df = pd.DataFrame([mcfn], columns=labels)
+
+        df.to_csv(mcfn, index=False)
 
     def get_history(self):
         return self.history

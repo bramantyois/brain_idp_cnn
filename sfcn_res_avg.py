@@ -2,7 +2,7 @@
 # coding: utf-8
 
 
-from sfcn import SFCN
+from res_sfcn import ResSFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import sys
 
 def main(idx):
-    name = 'sfcn_pyramid'
+    name = 'sfcn_res_avg'
     index=int(idx)
 
     batch_size = 8
@@ -43,7 +43,16 @@ def main(idx):
         output_scaler=scaler_instance,
         shuffle=False)
 
-    model = SFCN(
+    test_gen = VolumeDataGeneratorRegression(
+        sample_df=test_df, 
+        batch_size=batch_size, 
+        #num_reg_classes=num_output, 
+        dim=input_dim,
+        output_scaler=scaler_instance,
+        shuffle=False
+    )
+
+    model = ResSFCN(
             input_dim=[182, 218, 182, 1], 
             output_dim=num_output,
             conv_num_filters=[32, 64, 64, 128, 256, 256], 
@@ -51,7 +60,7 @@ def main(idx):
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             pooling_size=[2, 2, 2, 2, 2],
-            pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+            pooling_type=['avg_pool', 'avg_pool', 'avg_pool', 'avg_pool', 'avg_pool'],
             batch_norm=True,
             dropout=False,
             softmax=False,
@@ -65,16 +74,6 @@ def main(idx):
 
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
     model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
-
-    
-    test_gen = VolumeDataGeneratorRegression(
-        sample_df=test_df, 
-        batch_size=batch_size, 
-        #num_reg_classes=num_output, 
-        dim=input_dim,
-        output_scaler=scaler_instance,
-        shuffle=False
-    )
     model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
 if __name__=='__main__':

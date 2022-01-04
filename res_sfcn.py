@@ -229,7 +229,7 @@ class ResSFCN():
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
         self.callbacks =  [
-            EarlyStopping(patience=16),
+            # EarlyStopping(patience=32),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,

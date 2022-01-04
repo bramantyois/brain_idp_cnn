@@ -99,6 +99,11 @@ class VolumeDataGeneratorRegression(Sequence):
         """
         return self.target_df.iloc[self.indices].to_numpy()
 
+    def get_column_labels(self):
+        """teh column labels as a list
+        """
+        return self.target_df.columns.to_list()
+
     def on_epoch_end(self):
         """
         Shuffle the indices when shuffle==True. otherwise keep the index order
