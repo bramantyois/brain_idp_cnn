@@ -89,8 +89,10 @@ class SFCN():
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 
         gpus = tf.config.list_logical_devices('GPU')[:gpu_num]        
-        self.strategy = MirroredStrategy(gpus)
         
+        self.strategy = MirroredStrategy(gpus)
+        with self.strategy.scope():
+            self.build()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
@@ -166,7 +168,8 @@ class SFCN():
                 monitor='val_mae',
                 mode='min',
                 save_best_only=True)]
-
+    
+        
 
     def compile(self, learning_rate, optimizer='Adam', loss = 'mse'):
         """[summary]
@@ -178,8 +181,6 @@ class SFCN():
         """
         
         with self.strategy.scope():
-            self.build()
-
             self.learning_rate = learning_rate
             if optimizer=='Adam':
                 self.optimizer = Adam(learning_rate=learning_rate)
@@ -281,25 +282,37 @@ class SFCN():
 
         df.to_csv(fn, index=False)
 
-        # individual r2 score
+        # individual r2 and mse scores
         num_class = y_true.shape[1]
                 
-        multi_result = list
+        multi_r2 = list()
+        multi_mse = list()
         for i in range(num_class):
-            multi_result.append(r2_score(y_true[:,i], y_pred[:,i]))
-        
+            multi_r2.append(r2_score(y_true[:,i], y_pred[:,i]))
+            multi_mse.append(mean_squared_error(y_true[:,i], y_pred[:,i]))
+
         labels = x_generator.get_column_labels()
                   
-        mcfn = filedir.joinpath(filename + '_multi.csv')
-
-        if mcfn.exists():
-            entry = dict(zip(labels, multi_result))
-            df = pd.read_csv(mcfn)
+        #R2
+        r2fn = filedir.joinpath(filename + '_multi_r2.csv')
+        if r2fn.exists():
+            entry = dict(zip(labels, multi_r2))
+            df = pd.read_csv(r2fn)
             df = df.append(entry, ignore_index=True)
         else: 
-            df = pd.DataFrame([mcfn], columns=labels)
+            df = pd.DataFrame([multi_r2], columns=labels)
+        df.to_csv(r2fn, index=False)
 
-        df.to_csv(mcfn, index=False)
+        #MSE
+        msefn = filedir.joinpath(filename + '_multi_mse.csv')
+        if msefn.exists():
+            entry = dict(zip(labels, multi_mse))
+            df = pd.read_csv(msefn)
+            df = df.append(entry, ignore_index=True)
+        else: 
+            df = pd.DataFrame([multi_mse], columns=labels)
+        df.to_csv(msefn, index=False)
+
 
     def get_history(self):
         return self.history

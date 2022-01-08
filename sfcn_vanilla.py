@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 
 import sys
 
-def main(argv):
+
+def train_and_evaluate(idx, only_evaluate=False):
     name = 'sfcn_vanilla'
-    index=int(argv[0])
+    index=int(idx)
 
     batch_size = 8
     gpu_num = 8
@@ -39,15 +40,6 @@ def main(argv):
         output_scaler=scaler_instance,
         shuffle=False)
 
-    test_gen = VolumeDataGeneratorRegression(
-        sample_df=test_df, 
-        batch_size=batch_size, 
-        #num_reg_classes=num_output, 
-        dim=input_dim,
-        output_scaler=scaler_instance,
-        shuffle=False
-    )
-
     model = SFCN(
             input_dim=[182, 218, 182, 1], 
             output_dim=num_output,
@@ -60,16 +52,31 @@ def main(argv):
             batch_norm=True,
             dropout=False,
             softmax=False,
+            use_float16=True,
             gpu_num=gpu_num,
             name=name+'_'+str(index),
             )
-    model.compile(learning_rate=3e-4)
 
-    model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
+    if not only_evaluate:
+        model.compile(learning_rate=3e-4)
+        model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
 
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
-    model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
+
+    model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)    
+
+    test_gen = VolumeDataGeneratorRegression(
+        sample_df=test_df, 
+        batch_size=batch_size, 
+        #num_reg_classes=num_output, 
+        dim=input_dim,
+        output_scaler=scaler_instance,
+        shuffle=False
+    )
     model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
+
 if __name__=='__main__':
-    main(sys.argv[1:])
+    # for i in range(int(sys.argv[1])): 
+    #     main(i)
+    train_and_evaluate(sys.argv[1])

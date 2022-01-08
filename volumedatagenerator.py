@@ -13,13 +13,13 @@ class VolumeDataGeneratorRegression(Sequence):
     def __init__(
         self, 
         sample_df, 
-        batch_size=16, 
+        batch_size=8, 
         shuffle=True, 
         dim=(160, 160, 91), 
         num_channels=1,
-        # num_reg_classes=1,
         output_preprocessing='none',
         output_scaler=None,
+        idps_labels = list(),
         verbose=False):
         """[summary]
 
@@ -46,7 +46,11 @@ class VolumeDataGeneratorRegression(Sequence):
 
         self.sample_df = sample_df['path']
         self.target_df = sample_df.drop('path',axis=1)
+
+        if len(idps_labels) !=0:
+            self.target_df = self.target_df[idps_labels]
         
+        self.column_label_names = self.target_df.columns.to_list()
         # print(self.target_df.shape)
 
         self.num_data = len(sample_df.index)
@@ -80,19 +84,20 @@ class VolumeDataGeneratorRegression(Sequence):
                 
             if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax' or self.output_preprocessing == 'quantile':
                 transformed  = self.output_scaler_inst.fit_transform(self.target_df)
-                self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
+                self.target_df = pd.DataFrame(transformed, index=self.target_df.index, columns=self.column_label_names)
             
         else:
             transformed  = self.output_scaler_inst.transform(self.target_df)
-            self.target_df = pd.DataFrame(transformed, index=self.target_df.index)
+            self.target_df = pd.DataFrame(transformed, index=self.target_df.index, columns=self.column_label_names)
         
         if (self.target_df.isnull().values.any()):
-            print('nan trget found')
+            print('nan target found')
             # to do remove nan entries
     
 
     def get_scaler_instance(self):
         return self.output_scaler_inst
+
 
     def get_labels(self):
         """return the whole labels of the generator
@@ -100,9 +105,9 @@ class VolumeDataGeneratorRegression(Sequence):
         return self.target_df.iloc[self.indices].to_numpy()
 
     def get_column_labels(self):
-        """teh column labels as a list
+        """return column labels as a list
         """
-        return self.target_df.columns.to_list()
+        return self.column_label_names
 
     def on_epoch_end(self):
         """

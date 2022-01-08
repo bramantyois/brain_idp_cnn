@@ -68,6 +68,7 @@ def main(idx):
             use_float16=True,
             name=name+'_'+str(index)
             )
+            
     model.compile(learning_rate=3e-4)
 
     model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
