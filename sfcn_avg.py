@@ -1,15 +1,18 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from model.sfcn import SFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
-import sys
 import time
-
+import sys
 
 def train_and_evaluate(idx, only_evaluate=False):
-    name = 'sfcn_vanilla'
+    name = 'sfcn_avg'
     index=int(idx)
 
     batch_size = 8
@@ -54,39 +57,43 @@ def train_and_evaluate(idx, only_evaluate=False):
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             pooling_size=[2, 2, 2, 2, 2],
-            pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+            pooling_type=['avg_pool', 'avg_pool', 'avg_pool', 'avg_pool', 'avg_pool'],
             batch_norm=True,
             dropout=False,
             softmax=False,
-            use_float16=True,
             gpu_num=gpu_num,
-            name=name+'_'+str(index),
+            use_float16=True,
+            name=name+'_'+str(index)
             )
 
     if not only_evaluate:
         start = time.time()
         model.compile(learning_rate=1e-6)
         model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
+        stop = time.time()
 
-        time_elapsed = time.time() - start
+        time_elapsed = stop - start
         print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
-
+        
+    # validation set
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
-    model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)    
+    # model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
 
+    # test set
     test_gen = VolumeDataGeneratorRegression(
         sample_df=test_df, 
         batch_size=batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
-        output_scaler=scaler_instance, 
-        idps_labels=idps_labels,
-        shuffle=False
+        output_scaler=scaler_instance,
+        shuffle=False, 
+        idps_labels=idps_labels
     )
-    model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
+    model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    train_and_evaluate(sys.argv[1])
+    train_and_evaluate(sys.argv[1], only_evaluate=False)
+    #train_and_evaluate(1, only_evaluate=True)

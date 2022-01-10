@@ -2,14 +2,13 @@
 # coding: utf-8
 
 
-from sfcn import SFCN
+from model.sfcn import SFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
+
 import time
-
-
 import sys
 
 def train_and_evaluate(idx, only_evaluate=False):
@@ -17,7 +16,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     index=int(idx)
 
     batch_size = 8
-    gpu_num = 4
+    gpu_num = 8
     cpu_workers = 8
     epochs_num = 64
 
@@ -63,7 +62,7 @@ def train_and_evaluate(idx, only_evaluate=False):
             dropout=False,
             softmax=False,
             gpu_num=gpu_num,
-            use_float16=True,
+            use_float16=False,  
             name=name+'_'+str(index)
             )
 

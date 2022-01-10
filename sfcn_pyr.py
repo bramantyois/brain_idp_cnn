@@ -2,15 +2,16 @@
 # coding: utf-8
 
 
-from sfcn import SFCN
+from model.sfcn import SFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
+import time
 import sys
 
-def main(idx):
+def train_and_evaluate(idx, only_evaluate=False):
     name = 'sfcn_pyramid'
     index=int(idx)
 
@@ -19,19 +20,23 @@ def main(idx):
     cpu_workers = 8
     epochs_num = 64
 
-    train_df = pd.read_csv('csv/split_train.csv', index_col='eid').dropna()
-    valid_df = pd.read_csv('csv/split_valid.csv', index_col='eid').dropna()
-    test_df = pd.read_csv('csv/split_test.csv', index_col='eid').dropna()
+    idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
+    idps_labels = [str(l) for l in idps_labels]
+
+    train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
+    valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
+    test_df = pd.read_csv('csv/split_test.csv', index_col='id').dropna()
 
     input_dim = [182, 218, 182]
-    num_output = len(train_df.columns)-1
+    num_output = len(idps_labels)
 
     train_gen = VolumeDataGeneratorRegression(
         sample_df=train_df, 
         batch_size=batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
-        output_preprocessing='quantile')
+        output_preprocessing='quantile', 
+        idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()
 
@@ -41,7 +46,8 @@ def main(idx):
         #num_reg_classes=num_output, 
         dim=input_dim,
         output_scaler=scaler_instance,
-        shuffle=False)
+        shuffle=False, 
+        idps_labels=idps_labels)
 
     model = SFCN(
             input_dim=[182, 218, 182, 1], 
@@ -59,24 +65,29 @@ def main(idx):
             use_float16=True,
             name=name+'_'+str(index)
             )
-    model.compile(learning_rate=3e-4)
+    if not only_evaluate:
+        start = time.time()
+        model.compile(learning_rate=1e-6)
+        model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
+        stop = time.time()
 
-    model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
+        time_elapsed = stop - start
+        print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
 
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
     model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
 
-    
+     # test set
     test_gen = VolumeDataGeneratorRegression(
         sample_df=test_df, 
         batch_size=batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
         output_scaler=scaler_instance,
-        shuffle=False
+        shuffle=False, 
+        idps_labels=idps_labels
     )
     model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
 if __name__=='__main__':
-    for i in range(int(sys.argv[1])): 
-        main(i)
+    train_and_evaluate(sys.argv[1], only_evaluate=False)

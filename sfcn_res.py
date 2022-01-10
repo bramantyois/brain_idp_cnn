@@ -2,7 +2,7 @@
 # coding: utf-8
 
 
-from res_sfcn import ResSFCN
+from model.res_sfcn import ResSFCN
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
@@ -60,7 +60,7 @@ def main(idx):
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             pooling_size=[2, 2, 2, 2, 2],
-            pooling_type=['avg_pool', 'avg_pool', 'avg_pool', 'avg_pool', 'avg_pool'],
+            pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
             batch_norm=True,
             dropout=False,
             softmax=False,

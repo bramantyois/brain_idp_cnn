@@ -1,40 +1,22 @@
-from re import S
 import tensorflow as tf
 from tensorflow import keras 
-from tensorflow.keras.layers import Add, Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
+from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from tensorflow.distribute import MirroredStrategy
 
-import pandas as pd
-
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-import os 
+import pandas as pd
+import numpy as np
+
 from pathlib import Path
 from datetime import date
-import math
-
-def get_residuals_pool_shape(input_shape, output_shape):
-    shape = list()
-
-    for i in range(len(input_shape)):
-        x = int(math.floor(input_shape[i]/output_shape[i]))
-        shape.append(x)
-
-    return x
 
 
-def is_odd(val):
-    if val%2==0:
-        return False
-    else:
-        return True
-
-
-class ResSFCN():
+class SFCN():
     def __init__(
         self,
         input_dim,
@@ -45,14 +27,13 @@ class ResSFCN():
         conv_padding, 
         pooling_size,
         pooling_type,
-        res_pooling=True,
         batch_norm=True,
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
         gpu_num = 2,
         use_float16=False,
-        name='RESSFCN'):
+        name='SFCN'):
         """[summary]
 
         Parameters
@@ -99,9 +80,7 @@ class ResSFCN():
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
-        self.res_pooling = res_pooling
         self.name = name
-
 
         self.n_conv_layer = len(conv_num_filters)
 
@@ -109,27 +88,24 @@ class ResSFCN():
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 
         gpus = tf.config.list_logical_devices('GPU')[:gpu_num]        
-        self.strategy = MirroredStrategy(gpus)
         
+        self.strategy = MirroredStrategy(gpus)
+        with self.strategy.scope():
+            self.build()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
-    
+
 
     def build(self):
         """[summary]
         """
-        input_copy = list()
-        residuals = list()
         # Building model
         model_input = Input(shape=self.input_dim, name='input')
-
+        
         x = model_input 
 
-        n_half = int(math.floor(0.5*(self.n_conv_layer-1)))
-    
-        # first half convolutions
-        for i in range(n_half):
+        for i in range(self.n_conv_layer-1):
             x = Conv3D(
                 filters=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
@@ -146,51 +122,6 @@ class ResSFCN():
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
-            input_copy.append(x)
-
-            x = Activation('relu', name='activation_' + str(i))(x)
-   
-        # last half convolutions
-        for i in range(n_half, self.n_conv_layer-1):
-            x = Conv3D(
-                filters=self.conv_num_filters[i],
-                kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
-                name='conv_' + str(i)
-                )(x)
-            
-            if self.batch_norm:
-                x = BatchNormalization(name='batchnorm_' + str(i))(x)
-
-            if self.pooling_type[i] == 'avg_pool':
-                x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
-            else:
-                x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
-
-            res_idx =  self.n_conv_layer-i-1 
-            if (res_idx <= n_half):
-                #now adding residuals
-                res = input_copy[n_half-1-res_idx]
-
-                cur_shape = x.shape.as_list()[1:-1]
-                res_shape = res.shape.as_list()[1:-1]
-
-                pool_shape = get_residuals_pool_shape(res_shape, cur_shape)
-
-                res_num_fil = x.shape.as_list()[-1]
-                if self.res_pooling:
-                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-                else:
-                    # to be implemented
-                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-                    # res = Conv3D(filters=res_num_fil, kernel_size=1, strides=pool_shape, padding='valid', name='res_conv_'+str(i))(res)
-
-                x = Add()([x, res])
-                
-            # relu at the end of the block
             x = Activation('relu', name='activation_' + str(i))(x)
 
         x = Conv3D(
@@ -229,16 +160,17 @@ class ResSFCN():
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
         self.callbacks =  [
-            # EarlyStopping(patience=32),
+            EarlyStopping(patience=16),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,
                 monitor='val_mae',
                 mode='min',
                 save_best_only=True)]
+    
+        
 
-
-    def compile(self, learning_rate, optimizer='Adam', loss = 'mse'):
+    def compile(self, learning_rate=1e-6, optimizer='Adam', loss = 'mse'):
         """[summary]
 
         Args:
@@ -248,8 +180,6 @@ class ResSFCN():
         """
         
         with self.strategy.scope():
-            self.build()
-
             self.learning_rate = learning_rate
             if optimizer=='Adam':
                 self.optimizer = Adam(learning_rate=learning_rate)
@@ -326,8 +256,8 @@ class ResSFCN():
             workers=workers,
             max_queue_size=queue_size)
 
-        # Batching leaves some samples out, so we should throw y_true labels out too
-        y_true = x_generator.get_labels()[:y_pred.shape[0],:]
+        # aggregated r2 score
+        y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too
 
         r2 = r2_score(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
@@ -351,6 +281,37 @@ class ResSFCN():
 
         df.to_csv(fn, index=False)
 
+        # individual r2 and mse scores
+        num_class = y_true.shape[1]
+                
+        multi_r2 = list()
+        multi_mse = list()
+        for i in range(num_class):
+            multi_r2.append(r2_score(y_true[:,i], y_pred[:,i]))
+            multi_mse.append(mean_squared_error(y_true[:,i], y_pred[:,i]))
+
+        labels = x_generator.get_column_labels()
+                  
+        #R2
+        r2fn = filedir.joinpath(filename + '_multi_r2.csv')
+        if r2fn.exists():
+            entry = dict(zip(labels, multi_r2))
+            df = pd.read_csv(r2fn)
+            df = df.append(entry, ignore_index=True)
+        else: 
+            df = pd.DataFrame([multi_r2], columns=labels)
+        df.to_csv(r2fn, index=False)
+
+        #MSE
+        msefn = filedir.joinpath(filename + '_multi_mse.csv')
+        if msefn.exists():
+            entry = dict(zip(labels, multi_mse))
+            df = pd.read_csv(msefn)
+            df = df.append(entry, ignore_index=True)
+        else: 
+            df = pd.DataFrame([multi_mse], columns=labels)
+        df.to_csv(msefn, index=False)
+
 
     def get_history(self):
         return self.history
@@ -362,5 +323,9 @@ class ResSFCN():
 
         df = pd.DataFrame(self.history.history)
         df.to_csv(fn, index=False)
+
+
+
+
 
         
