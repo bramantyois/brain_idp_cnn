@@ -3,8 +3,7 @@ from tensorflow import keras
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.distribute import MirroredStrategy
 
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
@@ -14,7 +13,7 @@ import numpy as np
 
 from pathlib import Path
 from datetime import date
-
+import os
 
 class SFCN():
     def __init__(
@@ -31,8 +30,10 @@ class SFCN():
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
-        gpu_num = 2,
         use_float16=False,
+        early_stopping=16, 
+        reduce_lr_on_plateau=1,
+        gpu_list = range(8),
         name='SFCN'):
         """[summary]
 
@@ -80,15 +81,29 @@ class SFCN():
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
+
+        self.early_stopping = early_stopping
+        self.reduce_lr_on_plateau = reduce_lr_on_plateau
+
         self.name = name
 
         self.n_conv_layer = len(conv_num_filters)
 
+        gpu_list_str = str()
+        for gpu in gpu_list:
+            gpu_list_str += str(gpu)+','
+        gpu_list_str=gpu_list_str[:-1]
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list_str
+
+        gpu_num = len(gpu_list)
+        gpus = tf.config.list_logical_devices('GPU')        
+        
+        print(gpus)
+        
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 
-        gpus = tf.config.list_logical_devices('GPU')[:gpu_num]        
-        
         self.strategy = MirroredStrategy(gpus)
         with self.strategy.scope():
             self.build()
@@ -119,9 +134,9 @@ class SFCN():
 
             if self.pooling_type[i] == 'avg_pool':
                 x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
-            else:
+            elif self.pooling_type[i] == 'max_pool':
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
-
+            
             x = Activation('relu', name='activation_' + str(i))(x)
 
         x = Conv3D(
@@ -159,16 +174,20 @@ class SFCN():
         
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
-        self.callbacks =  [
-            EarlyStopping(patience=16),
-            ModelCheckpoint(
+
+        self.callbacks = [ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,
-                monitor='val_mae',
+                monitor='val_loss',
                 mode='min',
                 save_best_only=True)]
-    
-        
+
+        if self.early_stopping > 0:
+            self.callbacks.append(EarlyStopping(patience=self.early_stopping))
+
+        if self.reduce_lr_on_plateau < 1:
+            self.callbacks.append(ReduceLROnPlateau(patience=1, factor=self.reduce_lr_on_plateau))
+
 
     def compile(self, learning_rate=1e-6, optimizer='Adam', loss = 'mse'):
         """[summary]

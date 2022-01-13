@@ -62,13 +62,13 @@ def train_and_evaluate(idx, only_evaluate=False):
             dropout=False,
             softmax=False,
             gpu_num=gpu_num,
-            use_float16=False,  
+            use_float16=True,  
             name=name+'_'+str(index)
             )
 
     if not only_evaluate:
         start = time.time()
-        model.compile(learning_rate=3e-6)
+        model.compile(learning_rate=3e-7)
         model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
         stop = time.time()
 
@@ -77,7 +77,7 @@ def train_and_evaluate(idx, only_evaluate=False):
         
     # validation set
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
-    model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
+    # model.evaluate_generator(valid_gen, batch_size, filename=name + '_val', workers=cpu_workers)
 
     # test set
     test_gen = VolumeDataGeneratorRegression(

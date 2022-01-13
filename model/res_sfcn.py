@@ -109,7 +109,7 @@ class ResSFCN():
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 
-        gpus = tf.config.list_logical_devices('GPU')[:gpu_num]        
+        gpus = tf.config.list_logical_devices('GPU')[-gpu_num:]        
         self.strategy = MirroredStrategy(gpus)
         with self.strategy.scope():
             self.build()
@@ -143,12 +143,13 @@ class ResSFCN():
             if self.batch_norm:
                 x = BatchNormalization(name='batchnorm_' + str(i))(x)
 
+            input_copy.append(x)
+            
             if self.pooling_type[i] == 'avg_pool':
                 x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
             else:
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
 
-            input_copy.append(x)
 
             x = Activation('relu', name='activation_' + str(i))(x)
    
