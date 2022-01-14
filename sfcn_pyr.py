@@ -16,7 +16,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     index=int(idx)
 
     batch_size = 8
-    gpu_num = 8
+    gpu_list = range(8)
     cpu_workers = 8
     epochs_num = 64
 
@@ -61,10 +61,12 @@ def train_and_evaluate(idx, only_evaluate=False):
             batch_norm=True,
             dropout=False,
             softmax=False,
-            gpu_num=gpu_num,
+            reduce_lr_on_plateau=0.5,
+            gpu_list = gpu_list,
             use_float16=True,
             name=name+'_'+str(index)
             )
+            
     if not only_evaluate:
         start = time.time()
         model.compile(learning_rate=1e-6)

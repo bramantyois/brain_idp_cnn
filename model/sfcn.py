@@ -98,9 +98,7 @@ class SFCN():
 
         gpu_num = len(gpu_list)
         gpus = tf.config.list_logical_devices('GPU')        
-        
-        print(gpus)
-        
+                
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 

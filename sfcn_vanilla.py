@@ -13,8 +13,8 @@ def train_and_evaluate(idx, only_evaluate=False):
     index=int(idx)
 
     batch_size = 8
-    #gpu_list = range(8)
-    gpu_list = [4, 5, 6, 7]
+    gpu_list = range(8)
+    # gpu_list = [4, 5, 6, 7]
     cpu_workers = 8
     epochs_num = 64
 

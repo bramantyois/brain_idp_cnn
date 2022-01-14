@@ -4,8 +4,7 @@ from tensorflow import keras
 from tensorflow.keras.layers import Add, Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.losses import MeanAbsoluteError, MeanSquaredError
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.distribute import MirroredStrategy
 
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
@@ -15,24 +14,69 @@ import numpy as np
 
 from pathlib import Path
 from datetime import date
-import math
+import os
 
 
-def get_residuals_pool_shape(input_shape, output_shape):
-    shape = list()
+def residual_block(
+    x, 
+    filter_num, 
+    kernel_size=3, 
+    padding = 'same',
+    downsample=True, 
+    downsample_avgpool=True, 
+    prefix='res', 
+    postfix='0'):
+    """[summary]
 
-    for i in range(len(input_shape)):
-        x = int(math.floor(input_shape[i]/output_shape[i]))
-        shape.append(x)
+    Args:
+        x (Keras Tensor): Input Tensor
+        filter_num (int): filter num
+        kernel_size (int, optional): kernel size. Defaults to 3.
+        padding (String, optional): Padding, better leave it 'same'. Defaults to 'same'.
+        downsample (bool, optional): downsampling . Defaults to True.
+        downsample_avgpool (bool, optional): pooling applied to x before conv if true. Defaults to True.
+        prefix (str, optional): name prefix . Defaults to 'res'.
+        postfix (str, optional): name postfix. Defaults to '0'.
 
-    return x
+    Returns:
+        Keras Tensor: result
+    """
 
+    y = Conv3D(kernel_size=kernel_size,
+               strides= (1 if not downsample else 2),
+               filters=filter_num,
+               padding=padding, 
+               activation='relu',
+               name = prefix + '_conv0_' + postfix)(x)
 
-def is_odd(val):
-    if val%2==0:
-        return False
-    else:
-        return True
+    y = BatchNormalization(name = prefix + '_bn0_' + postfix)(y)
+
+    y = Conv3D(kernel_size=kernel_size,
+               strides=1,
+               filters=filter_num,
+               padding=padding,
+               name = prefix + '_conv1_' + postfix)(y)
+
+    if downsample:
+        ds_stride=2
+        if downsample_avgpool:
+            x = AveragePooling3D(
+                pool_size=2, 
+                padding='same',
+                name= prefix + '_ds_pool_' + postfix)(x)
+            ds_stride = 1
+     
+        x = Conv3D(kernel_size=1,
+                strides=ds_stride,
+                filters=filter_num,
+                padding="same",
+                name = prefix + '_ds_conv_' + postfix)(x)
+
+    out = Add(name = prefix + '_add_' + postfix)([x, y])
+    out = Activation('relu', name = prefix + '_relu_' + postfix)(out)
+    out = BatchNormalization(name = prefix + '_bn1_' + postfix)(out)
+
+    return out
 
 
 class ResSFCN():
@@ -44,16 +88,18 @@ class ResSFCN():
         conv_kernel_sizes, 
         conv_strides,
         conv_padding, 
-        pooling_size,
-        pooling_type,
-        res_pooling=True,
+        # pooling_size,
+        # pooling_type,
         batch_norm=True,
         dropout=True,
         dropout_rate=0.5,
         softmax=False,
-        gpu_num = 2,
         use_float16=False,
-        name='RESSFCN'):
+        early_stopping=16, 
+        reduce_lr_on_plateau=1,
+        gpu_list = range(8),
+        res_pooling=True,
+        name='ResSFCN'):
         """[summary]
 
         Parameters
@@ -94,8 +140,8 @@ class ResSFCN():
         self.conv_kernel_sizes = conv_kernel_sizes
         self.conv_strides = conv_strides
         self.conv_padding = conv_padding
-        self.pooling_size = pooling_size
-        self.pooling_type = pooling_type
+        # self.pooling_size = pooling_size
+        # self.pooling_type = pooling_type
         self.batch_norm = batch_norm
         self.dropout = dropout
         self.dropout_rate = dropout_rate
@@ -104,97 +150,46 @@ class ResSFCN():
         self.name = name
 
 
+        self.early_stopping = early_stopping
+        self.reduce_lr_on_plateau = reduce_lr_on_plateau
+        
         self.n_conv_layer = len(conv_num_filters)
+
+        gpu_list_str = str()
+        for gpu in gpu_list:
+            gpu_list_str += str(gpu)+','
+        gpu_list_str=gpu_list_str[:-1]
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list_str
+
+        gpus = tf.config.list_logical_devices('GPU')   
 
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
-
-        gpus = tf.config.list_logical_devices('GPU')[-gpu_num:]        
+            
         self.strategy = MirroredStrategy(gpus)
         with self.strategy.scope():
             self.build()
-        #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
-        #with tf.device("gpu:"+str(gpu_index)):
-        #    print("tf.keras will run on GPU: {}".format(gpu_index))
     
 
     def build(self):
         """[summary]
         """
         # Building model
-        input_copy = list()
 
         model_input = Input(shape=self.input_dim, name='input')
 
         x = model_input 
 
-        n_half = int(math.floor(0.5*(self.n_conv_layer-1)))
-    
-        # first half convolutions
-        for i in range(n_half):
-            x = Conv3D(
-                filters=self.conv_num_filters[i],
+        for i in range(self.n_conv_layer-1):
+            x = residual_block(
+                x=x,
+                filter_num=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
-                name='conv_' + str(i)
-                )(x)
-            
-            if self.batch_norm:
-                x = BatchNormalization(name='batchnorm_' + str(i))(x)
-
-            input_copy.append(x)
-            
-            if self.pooling_type[i] == 'avg_pool':
-                x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
-            else:
-                x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
-
-
-            x = Activation('relu', name='activation_' + str(i))(x)
-   
-        # last half convolutions
-        for i in range(n_half, self.n_conv_layer-1):
-            x = Conv3D(
-                filters=self.conv_num_filters[i],
-                kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
-                name='conv_' + str(i)
-                )(x)
-            
-            if self.batch_norm:
-                x = BatchNormalization(name='batchnorm_' + str(i))(x)
-
-            if self.pooling_type[i] == 'avg_pool':
-                x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
-            else:
-                x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
-
-            res_idx =  self.n_conv_layer-i-1 
-            if (res_idx <= n_half):
-                #now adding residuals
-                res = input_copy[n_half-1-res_idx]
-
-                cur_shape = x.shape.as_list()[1:-1]
-                res_shape = res.shape.as_list()[1:-1]
-
-                pool_shape = get_residuals_pool_shape(res_shape, cur_shape)
-
-                res_num_fil = x.shape.as_list()[-1]
-                if self.res_pooling:
-                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-                else:
-                    # to be implemented
-                    res = AveragePooling3D(pool_size=pool_shape, name='res_avgpool_'+str(i))(res)
-                    res = Conv3D(filters=res_num_fil, kernel_size=1,  name='res_conv_'+str(i))(res)
-                    # res = Conv3D(filters=res_num_fil, kernel_size=1, strides=pool_shape, padding='valid', name='res_conv_'+str(i))(res)
-
-                x = Add()([x, res])
-                
-            # relu at the end of the block
-            x = Activation('relu', name='activation_' + str(i))(x)
+                downsample=True, 
+                downsample_avgpool=self.res_pooling,
+                postfix=str(i)
+            )
 
         x = Conv3D(
             filters=self.conv_num_filters[-1],
@@ -231,17 +226,23 @@ class ResSFCN():
         
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
-        self.callbacks =  [
-            EarlyStopping(patience=16),
-            ModelCheckpoint(
+
+        self.callbacks = [ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 save_weights_only=True,
-                monitor='val_mae',
+                monitor='val_loss',
                 mode='min',
                 save_best_only=True)]
 
+        if self.early_stopping > 0:
+            self.callbacks.append(EarlyStopping(patience=self.early_stopping))
 
-    def compile(self, learning_rate, optimizer='Adam', loss = 'mse'):
+        if self.reduce_lr_on_plateau < 1:
+            self.callbacks.append(ReduceLROnPlateau(patience=1, factor=self.reduce_lr_on_plateau))
+
+
+
+    def compile(self, learning_rate=1e-6, optimizer='Adam', loss = 'mse'):
         """[summary]
 
         Args:
@@ -251,8 +252,6 @@ class ResSFCN():
         """
         
         with self.strategy.scope():
-            self.build()
-
             self.learning_rate = learning_rate
             if optimizer=='Adam':
                 self.optimizer = Adam(learning_rate=learning_rate)
@@ -274,7 +273,6 @@ class ResSFCN():
         """
 
         self.history = self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
-
         self.save_history()
 
 
@@ -329,8 +327,8 @@ class ResSFCN():
             workers=workers,
             max_queue_size=queue_size)
 
-        # Batching leaves some samples out, so we should throw y_true labels out too
-        y_true = x_generator.get_labels()[:y_pred.shape[0],:]
+        # aggregated r2 score
+        y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too
 
         r2 = r2_score(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
@@ -389,7 +387,6 @@ class ResSFCN():
     def get_history(self):
         return self.history
 
-
     def save_history(self):
         filedir = Path.cwd().joinpath('history')
         filedir.mkdir(parents=True, exist_ok=True)
@@ -397,5 +394,6 @@ class ResSFCN():
 
         df = pd.DataFrame(self.history.history)
         df.to_csv(fn, index=False)
+
 
         
