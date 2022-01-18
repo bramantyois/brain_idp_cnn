@@ -92,4 +92,4 @@ def train_and_evaluate(idx, only_evaluate=False):
     model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
 
 if __name__=='__main__':
-    train_and_evaluate(sys.argv[1], only_evaluate=False)
+    train_and_evaluate(sys.argv[1])

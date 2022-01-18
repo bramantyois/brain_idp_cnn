@@ -191,18 +191,18 @@ class ResSFCN():
                 postfix=str(i)
             )
 
-        x = Conv3D(
-            filters=self.conv_num_filters[-1],
+        x = residual_block(
+            x=x,
+            filter_num=self.conv_num_filters[-1],
             kernel_size=self.conv_kernel_sizes[-1],
-            strides=self.conv_strides[-1],
-            padding=self.conv_padding[-1],
-            name='conv_' + str(self.n_conv_layer-1)
-            )(x)
+            downsample=False, 
+            downsample_avgpool=self.res_pooling,
+            postfix=str(self.n_conv_layer-1))
 
-        if self.batch_norm:
-            x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
+        # if self.batch_norm:
+        #     x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
        
-        x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
+        # x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
 
         avg_shape = x.shape.as_list()[1:-1]
         x = AveragePooling3D(pool_size=avg_shape, name='avgpool_'+ str(self.n_conv_layer))(x)

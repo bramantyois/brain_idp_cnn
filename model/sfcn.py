@@ -5,7 +5,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.distribute import MirroredStrategy
-
+from tensorflow_addons.optimizers import extend_with_decoupled_weight_decay
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 import pandas as pd
@@ -28,10 +28,10 @@ class SFCN():
         pooling_type,
         batch_norm=True,
         dropout=True,
-        dropout_rate=0.5,
+        dropout_rate=0.9,
         softmax=False,
         use_float16=False,
-        early_stopping=16, 
+        early_stopping=8, 
         reduce_lr_on_plateau=1,
         gpu_list = range(8),
         name='SFCN'):
@@ -60,7 +60,7 @@ class SFCN():
         dropout : bool, optional
             [description], by default True
         dropout_rate : float, optional
-            [description], by default 0.5
+            [description], by default 0.9
         softmax : bool, optional
             [description], by default False
         gpu_num : int, optional
@@ -202,6 +202,10 @@ class SFCN():
                 self.optimizer = Adam(learning_rate=learning_rate)
             elif optimizer=='SGD':
                 self.optimizer = SGD(learning_rate=learning_rate)
+            elif optimizer=='AdamW':
+                MyAdamW = extend_with_decoupled_weight_decay(Adam)
+                self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
+
 
             if loss == 'mse':
                 self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])

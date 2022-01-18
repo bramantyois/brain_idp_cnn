@@ -57,6 +57,7 @@ def train_and_evaluate(idx, only_evaluate=False):
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             batch_norm=True,
+            res_pooling=False,
             dropout=False,
             softmax=False,
             use_float16=True,  
@@ -65,7 +66,7 @@ def train_and_evaluate(idx, only_evaluate=False):
             name=name+'_'+str(index)
             )
             
-    model.compile(learning_rate=3e-4)
+    model.compile(learning_rate=1e-3)
 
     model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
 
