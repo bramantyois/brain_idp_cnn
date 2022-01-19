@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
+from model.custommodel import CustomTrainStep
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.distribute import MirroredStrategy
@@ -34,6 +35,8 @@ class SFCN():
         early_stopping=8, 
         reduce_lr_on_plateau=1,
         gpu_list = range(8),
+        batch_size=8,
+        accumulate_gradient=False,
         name='SFCN'):
         """[summary]
 
@@ -102,8 +105,16 @@ class SFCN():
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
 
-        self.strategy = MirroredStrategy(gpus)
-        with self.strategy.scope():
+        self.accumulate_gradients = accumulate_gradient
+
+        if not self.accumulate_gradients:
+            self.strategy = MirroredStrategy(gpus)
+            with self.strategy.scope():
+                self.build()
+            self.batch_size=8
+        else: 
+            self.batch_size=1
+            self.num_accum=batch_size
             self.build()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
@@ -165,8 +176,10 @@ class SFCN():
         model_output = x
         # x = Flatten()(x)
         # model_output = Dense(units=self.output_dim)(x)
-        
-        self.model = Model(model_input, model_output)
+        if not self.accumulate_gradients:
+            self.model = Model(model_input, model_output)
+        else:
+            self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output])
         self.model.summary()
         
         
@@ -196,7 +209,21 @@ class SFCN():
             loss (str, optional): [description]. Defaults to 'mse'.
         """
         
-        with self.strategy.scope():
+        if not self.accumulate_gradients:
+            with self.strategy.scope():
+                self.learning_rate = learning_rate
+                if optimizer=='Adam':
+                    self.optimizer = Adam(learning_rate=learning_rate)
+                elif optimizer=='SGD':
+                    self.optimizer = SGD(learning_rate=learning_rate)
+                elif optimizer=='AdamW':
+                    MyAdamW = extend_with_decoupled_weight_decay(Adam)
+                    self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
+
+                if loss == 'mse':
+                    self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
+        
+        else:           
             self.learning_rate = learning_rate
             if optimizer=='Adam':
                 self.optimizer = Adam(learning_rate=learning_rate)
@@ -226,7 +253,7 @@ class SFCN():
         self.save_history()
 
 
-    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4, queue_size=None):
+    def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None):
         """[summary]
 
         Args:
@@ -236,18 +263,32 @@ class SFCN():
             epochs ([type]): [description]
             workers (int, optional): [description]. Defaults to 4.
         """
-        if queue_size==None:
-            queue_size=batch_size
+        if not self.accumulate_gradients:
+            if queue_size==None:
+                queue_size=self.batch_size
 
-        self.history = self.model.fit(
-            x=train_generator, 
-            validation_data=valid_generator, 
-            batch_size=batch_size, 
-            epochs=epochs, 
-            callbacks=self.callbacks,
-            workers=workers,
-            max_queue_size=queue_size,
-            verbose=2)
+            self.history = self.model.fit(
+                x=train_generator, 
+                validation_data=valid_generator, 
+                batch_size=self.batch_size, 
+                epochs=epochs, 
+                callbacks=self.callbacks,
+                workers=workers,
+                max_queue_size=queue_size,
+                verbose=2)
+        else:
+            if queue_size==None:
+                queue_size=self.num_accum
+
+            self.history = self.model.fit(
+                x=train_generator, 
+                validation_data=valid_generator, 
+                batch_size=1, 
+                epochs=epochs, 
+                callbacks=self.callbacks,
+                workers=workers,
+                max_queue_size=queue_size,
+                verbose=2)
         
         self.save_history()   
 
@@ -260,22 +301,37 @@ class SFCN():
         filepath : [type]
             [description]
         """
-        with self.strategy.scope():
+        if not self.accumulate_gradients:
+            with self.strategy.scope():
+                self.model.load_weights(filepath=filepath)
+        else:
             self.model.load_weights(filepath=filepath)
+
 
 
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=None):
-        if queue_size==None:
-            queue_size=batch_size
+    def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
+        
+        if not self.accumulate_gradients:
+            if queue_size==None:
+                queue_size=self.batch_size
 
-        y_pred = self.model.predict(
-            x = x_generator,
-            batch_size=batch_size, 
-            workers=workers,
-            max_queue_size=queue_size)
+            y_pred = self.model.predict(
+                x = x_generator,
+                batch_size=self.batch_size, 
+                workers=workers,
+                max_queue_size=queue_size)
+        else:
+            if queue_size==None:
+                queue_size=self.num_accum
+
+            y_pred = self.model.predict(
+                x = x_generator,
+                batch_size=1, 
+                workers=workers,
+                max_queue_size=queue_size)
 
         # aggregated r2 score
         y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too

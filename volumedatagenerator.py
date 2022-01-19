@@ -16,7 +16,7 @@ class VolumeDataGeneratorRegression(Sequence):
         sample_stats_df,
         batch_size=8, 
         shuffle=True, 
-        dim=(160, 160, 91), 
+        dim=(160, 182, 160), 
         num_channels=1,
         input_preprocessing='none',
         output_preprocessing='none',
@@ -145,6 +145,14 @@ class VolumeDataGeneratorRegression(Sequence):
         if self.shuffle:
             np.random.shuffle(self.indices)
 
+    def crop(self, input):
+        output_shape = self.dim
+        input_shape = input.shape
+
+        x_crop = int(0.5*(input_shape[0] - output_shape[0]))
+        y_crop = int(0.5*(input_shape[1] - output_shape[1]))
+        z_crop = int(0.5*(input_shape[2] - output_shape[2]))
+        return input[x_crop:-x_crop, y_crop:-y_crop, z_crop:-z_crop] 
 
     def __len__(self):
         """
@@ -178,14 +186,15 @@ class VolumeDataGeneratorRegression(Sequence):
             for i in range(0, self.batch_size):            
                 idx = indices[i]     
 
-                X[i] = nib.load(self.sample_df.iloc[idx]).get_fdata().reshape((*self.dim,1))
+                X[i] = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata().reshape((*self.dim,1)))
                 Y[i] = self.target_df.iloc[idx].to_numpy()
 
         elif self.input_preprocessing == 'standardize':
             for i in range(self.batch_size):            
                 idx = indices[i]    
 
-                img = nib.load(self.sample_df.iloc[idx]).get_fdata()
+                img = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata())
+
                 img = (img - self.sample_stats_df.iloc[idx]['mean']) / self.sample_stats_df.iloc[idx]['std']
 
                 X[i] = img.reshape((*self.dim,1))
@@ -195,7 +204,7 @@ class VolumeDataGeneratorRegression(Sequence):
             for i in range(self.batch_size):  
                 idx = indices[i]    
 
-                img = nib.load(self.sample_df.iloc[idx]).get_fdata()
+                img = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata())
 
                 img = (img - self.sample_stats_df.iloc[idx]['min']) / self.sample_stats_df.iloc[idx]['range']
 

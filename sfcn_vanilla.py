@@ -12,9 +12,10 @@ def train_and_evaluate(idx, only_evaluate=False):
     name = 'sfcn_vanilla'
     index=int(idx)
 
-    batch_size = 8
-    gpu_list = range(8)
-    # gpu_list = [4, 5, 6, 7]
+    generator_batch_size = 1
+    accum_num = 16
+    #gpu_list = range(8)
+    gpu_list = [7]
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
@@ -28,13 +29,13 @@ def train_and_evaluate(idx, only_evaluate=False):
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
     valid_stats = pd.read_csv('csv/valid_stats.csv', index_col='id')
 
-    input_dim = [182, 218, 182]
+    input_dim = [160, 192, 160]
     num_output = len(idps_labels)
 
     train_gen = VolumeDataGeneratorRegression(
         sample_df=train_df, 
         sample_stats_df=train_stats,
-        batch_size=batch_size, 
+        batch_size=generator_batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
@@ -46,7 +47,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     valid_gen = VolumeDataGeneratorRegression(
         sample_df=valid_df, 
         sample_stats_df=valid_stats,
-        batch_size=batch_size, 
+        batch_size=generator_batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
@@ -55,28 +56,29 @@ def train_and_evaluate(idx, only_evaluate=False):
         idps_labels=idps_labels)
 
     model = SFCN(
-            input_dim=[182, 218, 182, 1], 
-            output_dim=num_output,
-            conv_num_filters=[32, 64, 128, 256, 256, 64], 
-            conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
-            conv_strides=[1, 1, 1, 1, 1, 1],
-            conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
-            pooling_size=[2, 2, 2, 2, 2],
-            pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
-            batch_norm=True,
-            dropout=False,
-            softmax=False,
-            use_float16=False,
-            reduce_lr_on_plateau=0.5,
-            early_stopping=16,
-            gpu_list = gpu_list,
-            name=name+'_'+str(index),
-            )
+        input_dim=[160, 192, 160, 1], 
+        output_dim=num_output,
+        conv_num_filters=[32, 64, 128, 256, 256, 64], 
+        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
+        conv_strides=[1, 1, 1, 1, 1, 1],
+        conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
+        pooling_size=[2, 2, 2, 2, 2],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+        batch_norm=True,
+        dropout=False,
+        softmax=False,
+        use_float16=False,
+        #reduce_lr_on_plateau=0.5,
+        batch_size=accum_num, 
+        early_stopping=16,
+        accumulate_gradient=True,
+        gpu_list = gpu_list,
+        name=name+'_'+str(index),)
 
     if not only_evaluate:
         start = time.time()
         model.compile(learning_rate=3e-4, optimizer='Adam')
-        model.train_generator(train_gen, valid_gen, batch_size=batch_size, epochs=epochs_num, workers=cpu_workers)
+        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers)
 
         time_elapsed = time.time() - start
         print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
@@ -89,7 +91,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     test_gen = VolumeDataGeneratorRegression(
         sample_df=test_df, 
         sample_stats_df=test_stats,
-        batch_size=batch_size, 
+        batch_size=generator_batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
@@ -97,11 +99,11 @@ def train_and_evaluate(idx, only_evaluate=False):
         idps_labels=idps_labels,
         shuffle=False
     )
-    model.evaluate_generator(test_gen, batch_size, filename=name + '_test', workers=cpu_workers)
+    model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
 
 
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
     train_and_evaluate(sys.argv[1])
-    # train_and_evaluate(10)
+    #train_and_evaluate(12)
