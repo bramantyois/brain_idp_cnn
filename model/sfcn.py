@@ -7,7 +7,7 @@ from model.custommodel import CustomTrainStep
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.distribute import MirroredStrategy
-from tensorflow_addons.optimizers import extend_with_decoupled_weight_decay
+#from tensorflow_addons.optimizers import extend_with_decoupled_weight_decay
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 import pandas as pd
@@ -105,21 +105,18 @@ class SFCN():
 
         self.multi_gpu = self.num_gpu > 1
 
-        if self.multi_gpu:
-            self.batch_size = batch_size
+        self.batch_size = self.num_gpu
+        self.num_accum = int(batch_size/self.num_gpu)
 
+        if self.multi_gpu:
             self.strategy = MirroredStrategy(tf.config.list_logical_devices('GPU'))
             with self.strategy.scope():
                 self.build()
         else: 
-            #accumulate gradients
-            self.batch_size = self.num_gpu
-            self.num_accum= int(batch_size/self.num_gpu)
             self.build()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
         #    print("tf.keras will run on GPU: {}".format(gpu_index))
-
 
     def build(self):
         """[summary]
@@ -179,13 +176,12 @@ class SFCN():
         
         model_output = x
         
-        if self.multi_gpu:
+        if self.num_accum == 1:
             self.model = Model(model_input, model_output)
         else:
             self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output])
         self.model.summary()
-        
-        
+                
         # building callbacks
         checkpoint_filepath = 'weights/checkpoint_'+self.name
 
@@ -219,9 +215,9 @@ class SFCN():
                     self.optimizer = Adam(learning_rate=learning_rate)
                 elif optimizer=='SGD':
                     self.optimizer = SGD(learning_rate=learning_rate)
-                elif optimizer=='AdamW':
-                    MyAdamW = extend_with_decoupled_weight_decay(Adam)
-                    self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
+                # elif optimizer=='AdamW':
+                #     MyAdamW = extend_with_decoupled_weight_decay(Adam)
+                #     self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
 
                 if loss == 'mse':
                     self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])       
@@ -231,9 +227,9 @@ class SFCN():
                 self.optimizer = Adam(learning_rate=learning_rate)
             elif optimizer=='SGD':
                 self.optimizer = SGD(learning_rate=learning_rate)
-            elif optimizer=='AdamW':
-                MyAdamW = extend_with_decoupled_weight_decay(Adam)
-                self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
+            #elif optimizer=='AdamW':
+                #MyAdamW = extend_with_decoupled_weight_decay(Adam)
+                #self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
 
             if loss == 'mse':
                 self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
@@ -265,17 +261,17 @@ class SFCN():
             workers (int, optional): [description]. Defaults to 4.
         """
         if queue_size==None:
-           queue_size=int(workers*2)
+           queue_size=workers
 
         self.history = self.model.fit(
-            x=train_generator, 
-            validation_data=valid_generator, 
-            batch_size=self.batch_size, 
-            epochs=epochs, 
-            callbacks=self.callbacks,
-            workers=workers,
-            max_queue_size=queue_size,
-            verbose=verbose)
+            x = train_generator, 
+            validation_data = valid_generator, 
+            batch_size = self.batch_size, 
+            epochs = epochs, 
+            callbacks = self.callbacks,
+            workers = workers,
+            max_queue_size = queue_size,
+            verbose = verbose)
                 
         self.save_history()   
 
@@ -300,8 +296,14 @@ class SFCN():
     def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
         
         if queue_size==None:
-           queue_size=int(workers*2)
+           queue_size=workers
         
+        y_pred = self.model.predict(
+            x = x_generator,
+            batch_size=self.batch_size, 
+            workers=workers,
+            max_queue_size=queue_size)
+
         # aggregated r2 score
         y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too
 
@@ -371,7 +373,5 @@ class SFCN():
         df.to_csv(fn, index=False)
 
 
-
-
-
-        
+    def get_batchsize(self):
+        return self.batch_size
