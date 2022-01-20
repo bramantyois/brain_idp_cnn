@@ -1,6 +1,7 @@
+from itertools import accumulate
 import tensorflow as tf
 from tensorflow import keras 
-from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
+from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, LayerNormalization, Input, Dropout, Flatten, Dense, Softmax
 from tensorflow.keras.models import Model
 from model.custommodel import CustomTrainStep
 from tensorflow.keras.optimizers import Adam, SGD
@@ -27,16 +28,15 @@ class SFCN():
         conv_padding, 
         pooling_size,
         pooling_type,
-        batch_norm=True,
-        dropout=True,
+        normalization='none',
+        dropout=False,
         dropout_rate=0.9,
         softmax=False,
-        use_float16=False,
+        batch_size=8,
         early_stopping=8, 
         reduce_lr_on_plateau=1,
+        use_float16=False,
         gpu_list = range(8),
-        batch_size=8,
-        accumulate_gradient=False,
         name='SFCN'):
         """[summary]
 
@@ -80,7 +80,7 @@ class SFCN():
         self.conv_padding = conv_padding
         self.pooling_size = pooling_size
         self.pooling_type = pooling_type
-        self.batch_norm = batch_norm
+        self.normalization = normalization
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
@@ -92,6 +92,7 @@ class SFCN():
 
         self.n_conv_layer = len(conv_num_filters)
 
+        self.num_gpu = len(gpu_list)     
         gpu_list_str = str()
         for gpu in gpu_list:
             gpu_list_str += str(gpu)+','
@@ -99,22 +100,21 @@ class SFCN():
 
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list_str
 
-        gpu_num = len(gpu_list)
-        gpus = tf.config.list_logical_devices('GPU')        
-                
         if use_float16:
-            tf.keras.mixed_precision.set_global_policy("mixed_float16") 
+            tf.keras.mixed_precision.set_global_policy('mixed_float16') 
 
-        self.accumulate_gradients = accumulate_gradient
+        self.multi_gpu = self.num_gpu > 1
 
-        if not self.accumulate_gradients:
-            self.strategy = MirroredStrategy(gpus)
+        if self.multi_gpu:
+            self.batch_size = batch_size
+
+            self.strategy = MirroredStrategy(tf.config.list_logical_devices('GPU'))
             with self.strategy.scope():
                 self.build()
-            self.batch_size=8
         else: 
-            self.batch_size=1
-            self.num_accum=batch_size
+            #accumulate gradients
+            self.batch_size = self.num_gpu
+            self.num_accum= int(batch_size/self.num_gpu)
             self.build()
         #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
         #with tf.device("gpu:"+str(gpu_index)):
@@ -138,8 +138,10 @@ class SFCN():
                 name='conv_' + str(i)
                 )(x)
             
-            if self.batch_norm:
+            if self.normalization == 'batch':
                 x = BatchNormalization(name='batchnorm_' + str(i))(x)
+            elif self.normalization == 'layer':
+                x = LayerNormalization(name='layernorm_' + str(i))(x)
 
             if self.pooling_type[i] == 'avg_pool':
                 x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
@@ -156,9 +158,11 @@ class SFCN():
             name='conv_' + str(self.n_conv_layer-1)
             )(x)
 
-        if self.batch_norm:
+        if self.normalization == 'batch':
             x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
-       
+        elif self.normalization == 'layer':
+            x = LayerNormalization(name='layernorm_' + str(self.n_conv_layer-1))(x)
+
         x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
 
         avg_shape = x.shape.as_list()[1:-1]
@@ -174,9 +178,8 @@ class SFCN():
             x = Softmax()(x)
         
         model_output = x
-        # x = Flatten()(x)
-        # model_output = Dense(units=self.output_dim)(x)
-        if not self.accumulate_gradients:
+        
+        if self.multi_gpu:
             self.model = Model(model_input, model_output)
         else:
             self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output])
@@ -209,7 +212,7 @@ class SFCN():
             loss (str, optional): [description]. Defaults to 'mse'.
         """
         
-        if not self.accumulate_gradients:
+        if self.multi_gpu:
             with self.strategy.scope():
                 self.learning_rate = learning_rate
                 if optimizer=='Adam':
@@ -221,8 +224,7 @@ class SFCN():
                     self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
 
                 if loss == 'mse':
-                    self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
-        
+                    self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])       
         else:           
             self.learning_rate = learning_rate
             if optimizer=='Adam':
@@ -232,7 +234,6 @@ class SFCN():
             elif optimizer=='AdamW':
                 MyAdamW = extend_with_decoupled_weight_decay(Adam)
                 self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
-
 
             if loss == 'mse':
                 self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
@@ -253,7 +254,7 @@ class SFCN():
         self.save_history()
 
 
-    def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None):
+    def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None, verbose=2):
         """[summary]
 
         Args:
@@ -263,33 +264,19 @@ class SFCN():
             epochs ([type]): [description]
             workers (int, optional): [description]. Defaults to 4.
         """
-        if not self.accumulate_gradients:
-            if queue_size==None:
-                queue_size=self.batch_size
+        if queue_size==None:
+           queue_size=int(workers*2)
 
-            self.history = self.model.fit(
-                x=train_generator, 
-                validation_data=valid_generator, 
-                batch_size=self.batch_size, 
-                epochs=epochs, 
-                callbacks=self.callbacks,
-                workers=workers,
-                max_queue_size=queue_size,
-                verbose=2)
-        else:
-            if queue_size==None:
-                queue_size=self.num_accum
-
-            self.history = self.model.fit(
-                x=train_generator, 
-                validation_data=valid_generator, 
-                batch_size=1, 
-                epochs=epochs, 
-                callbacks=self.callbacks,
-                workers=workers,
-                max_queue_size=queue_size,
-                verbose=2)
-        
+        self.history = self.model.fit(
+            x=train_generator, 
+            validation_data=valid_generator, 
+            batch_size=self.batch_size, 
+            epochs=epochs, 
+            callbacks=self.callbacks,
+            workers=workers,
+            max_queue_size=queue_size,
+            verbose=verbose)
+                
         self.save_history()   
 
 
@@ -301,38 +288,20 @@ class SFCN():
         filepath : [type]
             [description]
         """
-        if not self.accumulate_gradients:
+        if self.multi_gpu:
             with self.strategy.scope():
                 self.model.load_weights(filepath=filepath)
         else:
             self.model.load_weights(filepath=filepath)
-
-
 
     def predict(self, x):
         return self.model.predict(x)
 
     def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
         
-        if not self.accumulate_gradients:
-            if queue_size==None:
-                queue_size=self.batch_size
-
-            y_pred = self.model.predict(
-                x = x_generator,
-                batch_size=self.batch_size, 
-                workers=workers,
-                max_queue_size=queue_size)
-        else:
-            if queue_size==None:
-                queue_size=self.num_accum
-
-            y_pred = self.model.predict(
-                x = x_generator,
-                batch_size=1, 
-                workers=workers,
-                max_queue_size=queue_size)
-
+        if queue_size==None:
+           queue_size=int(workers*2)
+        
         # aggregated r2 score
         y_true = x_generator.get_labels()[:y_pred.shape[0],:] # Batching leaves some samples out, so we should throw y_true labels out too
 

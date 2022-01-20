@@ -12,8 +12,9 @@ def train_and_evaluate(idx, only_evaluate=False):
     name = 'sfcn_vanilla'
     index=int(idx)
 
+    batch_size = 16
     generator_batch_size = 1
-    accum_num = 16
+    #accum_num = 16
     #gpu_list = range(8)
     gpu_list = [7]
     cpu_workers = 8
@@ -64,21 +65,20 @@ def train_and_evaluate(idx, only_evaluate=False):
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
         pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
-        batch_norm=True,
+        normalization='layer',
         dropout=False,
         softmax=False,
         use_float16=False,
-        #reduce_lr_on_plateau=0.5,
-        batch_size=accum_num, 
+        reduce_lr_on_plateau=0.5,
+        batch_size=batch_size, 
         early_stopping=16,
-        accumulate_gradient=True,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
     if not only_evaluate:
         start = time.time()
-        model.compile(learning_rate=3e-4, optimizer='Adam')
-        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers)
+        model.compile(learning_rate=1e-3, optimizer='Adam')
+        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers, verbose=2)
 
         time_elapsed = time.time() - start
         print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
@@ -105,5 +105,5 @@ def train_and_evaluate(idx, only_evaluate=False):
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    train_and_evaluate(sys.argv[1])
-    #train_and_evaluate(12)
+    # train_and_evaluate(sys.argv[1])
+    train_and_evaluate(13)
