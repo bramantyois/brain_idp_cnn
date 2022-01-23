@@ -13,7 +13,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     index=int(idx)
 
     batch_size = 8
-    gpu_list = [4,5,6,7]
+    gpu_list = range(8)
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
@@ -25,7 +25,6 @@ def train_and_evaluate(idx, only_evaluate=False):
     train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
-    valid_stats = pd.read_csv('csv/valid_stats.csv', index_col='id')
 
     input_dim = [160, 192, 160]
     num_output = len(idps_labels)
@@ -39,13 +38,14 @@ def train_and_evaluate(idx, only_evaluate=False):
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
         pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
-        normalization='layer',
-        dropout=False,
+        normalization='batch',
+        dropout=True,
+        dropout_rate=0.5,
         softmax=False,
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
-        early_stopping=16,
+        early_stopping=8,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
@@ -65,7 +65,7 @@ def train_and_evaluate(idx, only_evaluate=False):
 
     valid_gen = VolumeDataGeneratorRegression(
         sample_df=valid_df, 
-        sample_stats_df=valid_stats,
+        sample_stats_df=train_stats,
         batch_size=generator_batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
@@ -77,8 +77,8 @@ def train_and_evaluate(idx, only_evaluate=False):
     
     if not only_evaluate:
         start = time.time()
-        model.compile(learning_rate=1e-3, optimizer='Adam')
-        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers, verbose=1)
+        model.compile(learning_rate=1e-4, optimizer='Adam')
+        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers, verbose=2)
 
         time_elapsed = time.time() - start
         print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
@@ -87,11 +87,10 @@ def train_and_evaluate(idx, only_evaluate=False):
     model.load_weights('weights/checkpoint_' + name + '_' + str(index))
 
     test_df = pd.read_csv('csv/split_test.csv', index_col='id').dropna()
-    test_stats = pd.read_csv('csv/test_stats.csv', index_col='id')
 
     test_gen = VolumeDataGeneratorRegression(
         sample_df=test_df, 
-        sample_stats_df=test_stats,
+        sample_stats_df=train_stats,
         batch_size=generator_batch_size, 
         #num_reg_classes=num_output, 
         dim=input_dim,
@@ -106,5 +105,5 @@ def train_and_evaluate(idx, only_evaluate=False):
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    # train_and_evaluate(sys.argv[1])
-    train_and_evaluate(13)
+    train_and_evaluate(sys.argv[1])
+    #train_and_evaluate(13)

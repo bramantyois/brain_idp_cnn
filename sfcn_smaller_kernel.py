@@ -1,15 +1,20 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from model.sfcn import SFCN
+from keras import backend as K
+
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
-import sys
 import time
+import sys
 
-
-def train_and_evaluate(idx, only_evaluate=False):
-    name = 'sfcn_pyramid_nodrop'
+def sfcn_pyramid_small_kern(idx, only_evaluate=False):
+    name = 'sfcn_pyramid_small_kern'
     index=int(idx)
 
     batch_size = 8
@@ -33,7 +38,7 @@ def train_and_evaluate(idx, only_evaluate=False):
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
         conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
+        conv_kernel_sizes=[2, 2, 2, 2, 2, 2], 
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
@@ -100,10 +105,11 @@ def train_and_evaluate(idx, only_evaluate=False):
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-
+    
+    K.clear_session()
 
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    train_and_evaluate(sys.argv[1])
-    #train_and_evaluate(6)
+    sfcn_pyramid_small_kern(sys.argv[1], only_evaluate=False)
+    #train_and_evaluate(1, only_evaluate=True)

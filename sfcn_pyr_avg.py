@@ -12,11 +12,11 @@ import time
 import sys
 
 def train_and_evaluate(idx, only_evaluate=False):
-    name = 'sfcn_pyramid_avg'
+    name = 'sfcn_pyramid_avg_no_drop'
     index=int(idx)
 
     batch_size = 8
-    gpu_num = 8
+    gpu_list =  [4,5,6,7]
     cpu_workers = 8
     epochs_num = 64
 

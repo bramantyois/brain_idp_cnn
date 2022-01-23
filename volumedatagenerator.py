@@ -49,8 +49,8 @@ class VolumeDataGeneratorRegression(Sequence):
         self.sample_df = sample_df['path']
         self.sample_stats_df = sample_stats_df
 
-        if not self.sample_df.index.equals(self.sample_stats_df.index):
-            print('sample_df and stats are not the same')
+        # if not self.sample_df.index.equals(self.sample_stats_df.index):
+        #     print('sample_df and stats are not the same')
 
         self.target_df = sample_df.drop('path',axis=1)
 
@@ -108,7 +108,8 @@ class VolumeDataGeneratorRegression(Sequence):
                 self.output_scaler_inst = MinMaxScaler()
 
             elif self.output_preprocessing =='quantile':
-                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000, output_distribution='normal')
+                # self.output_scaler_inst = QuantileTransformer(n_quantiles=1000, output_distribution='normal')
+                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000)                
                 
             if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax' or self.output_preprocessing == 'quantile':
                 transformed  = self.output_scaler_inst.fit_transform(self.target_df)
@@ -185,8 +186,8 @@ class VolumeDataGeneratorRegression(Sequence):
         if self.input_preprocessing == 'none':
             for i in range(0, self.batch_size):            
                 idx = indices[i]     
-
-                X[i] = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata().reshape((*self.dim,1)))
+                img = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata())
+                X[i] = img.reshape((*self.dim,1))
                 Y[i] = self.target_df.iloc[idx].to_numpy()
 
         elif self.input_preprocessing == 'standardize':
@@ -195,7 +196,7 @@ class VolumeDataGeneratorRegression(Sequence):
 
                 img = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata())
 
-                img = (img - self.sample_stats_df.iloc[idx]['mean']) / self.sample_stats_df.iloc[idx]['std']
+                img = (img - self.sample_stats_df.iloc[0]['mean']) / self.sample_stats_df.iloc[0]['std']
 
                 X[i] = img.reshape((*self.dim,1))
                 Y[i] = self.target_df.iloc[idx].to_numpy()
@@ -206,7 +207,7 @@ class VolumeDataGeneratorRegression(Sequence):
 
                 img = self.crop(nib.load(self.sample_df.iloc[idx]).get_fdata())
 
-                img = (img - self.sample_stats_df.iloc[idx]['min']) / self.sample_stats_df.iloc[idx]['range']
+                img = (img - self.sample_stats_df.iloc[0]['min']) / self.sample_stats_df.iloc[0]['range']
 
                 X[i] = img.reshape((*self.dim,1))
                 Y[i] = self.target_df.iloc[idx].to_numpy()

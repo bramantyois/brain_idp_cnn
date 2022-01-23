@@ -105,8 +105,8 @@ class SFCN():
 
         self.multi_gpu = self.num_gpu > 1
 
-        self.batch_size = self.num_gpu
-        self.num_accum = int(batch_size/self.num_gpu)
+        self.batch_size = batch_size
+        self.num_accum = 1
 
         if self.multi_gpu:
             self.strategy = MirroredStrategy(tf.config.list_logical_devices('GPU'))
@@ -171,6 +171,7 @@ class SFCN():
         x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer))(x)
         
         x = Flatten()(x)
+        
         if self.softmax:
             x = Softmax()(x)
         
