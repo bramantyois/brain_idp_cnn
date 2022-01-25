@@ -56,7 +56,7 @@ def main(idx):
             input_dim=[182, 218, 182, 1], 
             output_dim=num_output,
             conv_num_filters=[32, 64, 64, 128, 256, 256], 
-            conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
+            conv_kernel_sizes=[3, 3, 3, 3, 3, 3], 
             conv_strides=[1, 1, 1, 1, 1, 1],
             conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
             pooling_size=[2, 2, 2, 2, 2],

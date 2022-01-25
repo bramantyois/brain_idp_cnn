@@ -1,22 +1,27 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from model.sfcn import SFCN
+from keras import backend as K
+
 import numpy as np
 import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
-import sys
 import time
+import sys
 
-
-def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
+def sfcn_pyramid_bigger_kern(idx, only_evaluate=False):
+    name = 'sfcn_pyramid_big_kern'
     index=int(idx)
 
     batch_size = 8
-    gpu_list =  [4,5,6,7]
+    gpu_list =  range(8)
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
-    output_preprocessing = 'quantile-normal'
 
     idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
     idps_labels = [str(l) for l in idps_labels]
@@ -33,7 +38,7 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
         conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
+        conv_kernel_sizes=[4, 4, 4, 4, 4, 1], 
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
@@ -45,7 +50,7 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
-        early_stopping=8,
+        early_stopping=10,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
@@ -58,7 +63,7 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
-        output_preprocessing=output_preprocessing, 
+        output_preprocessing='quantile', 
         idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()
@@ -100,10 +105,11 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-
+    
+    K.clear_session()
 
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    sfcn_pyr(sys.argv[1])
-    #train_and_evaluate(6)
+    sfcn_pyramid_bigger_kern(0, only_evaluate=True)
+    #train_and_evaluate(1, only_evaluate=True)

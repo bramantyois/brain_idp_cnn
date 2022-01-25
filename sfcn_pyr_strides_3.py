@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
-def sfcn_pyramid_strides(idx, only_evaluate=False):
-    name = 'sfcn_pyramid_nopool_v2'
+def sfcn_pyramid_strides3(idx, only_evaluate=False, name = 'sfcn_pyramid_strides3_qn'):
     index=int(idx)
 
     batch_size = 8
@@ -22,6 +21,7 @@ def sfcn_pyramid_strides(idx, only_evaluate=False):
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
+    output_preprocess = 'quantile-normal'
 
     idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
     idps_labels = [str(l) for l in idps_labels]
@@ -38,8 +38,8 @@ def sfcn_pyramid_strides(idx, only_evaluate=False):
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
         conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
-        conv_strides=[2, 2, 2, 2, 2, 1],
+        conv_kernel_sizes=[3, 3, 3, 3, 1, 1], 
+        conv_strides=[3, 3, 3, 3, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
         pooling_type=['no_pool', 'no_pool', 'no_pool', 'no_pool', 'no_pool'],
@@ -50,7 +50,7 @@ def sfcn_pyramid_strides(idx, only_evaluate=False):
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
-        early_stopping=10,
+        early_stopping=8,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
@@ -63,7 +63,7 @@ def sfcn_pyramid_strides(idx, only_evaluate=False):
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
-        output_preprocessing='quantile', 
+        output_preprocessing=output_preprocess, 
         idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()

@@ -4,16 +4,20 @@ import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
+from keras import backend as K
+
 import sys
 import time
 
 
-def train_and_evaluate(idx, only_evaluate=False):
+def sfcn_vanilla(idx, only_evaluate=False):
     name = 'sfcn_vanilla'
     index=int(idx)
 
+    index=int(idx)
+
     batch_size = 8
-    gpu_list = range(8)
+    gpu_list =  range(8)
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
@@ -39,13 +43,13 @@ def train_and_evaluate(idx, only_evaluate=False):
         pooling_size=[2, 2, 2, 2, 2],
         pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='batch',
-        dropout=True,
-        dropout_rate=0.5,
+        dropout=False,
+        #dropout_rate=0.5,
         softmax=False,
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
-        early_stopping=8,
+        early_stopping=10,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
@@ -77,7 +81,7 @@ def train_and_evaluate(idx, only_evaluate=False):
     
     if not only_evaluate:
         start = time.time()
-        model.compile(learning_rate=1e-4, optimizer='Adam')
+        model.compile(learning_rate=1e-3, optimizer='Adam')
         model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers, verbose=2)
 
         time_elapsed = time.time() - start
@@ -100,10 +104,12 @@ def train_and_evaluate(idx, only_evaluate=False):
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
+    
+    K.clear_session()
 
 
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    train_and_evaluate(sys.argv[1])
+    sfcn_vanilla(sys.argv[1])
     #train_and_evaluate(13)

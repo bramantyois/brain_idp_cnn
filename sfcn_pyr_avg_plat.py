@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
-def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_nodrop'):
+def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_qn'):
     
     index=int(idx)
 
@@ -23,6 +23,7 @@ def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_nodrop'):
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
+    output_preprocessing ='quantile_normal'
 
     idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
     idps_labels = [str(l) for l in idps_labels]
@@ -50,7 +51,7 @@ def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_nodrop'):
         softmax=False,
         use_float16=True,  
         reduce_lr_on_plateau=0.5,
-        early_stopping=10, 
+        early_stopping=8, 
         batch_size=batch_size,
         gpu_list = gpu_list,
         name=name+'_'+str(index)
@@ -65,7 +66,7 @@ def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_nodrop'):
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
-        output_preprocessing='quantile', 
+        output_preprocessing=output_preprocessing, 
         idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()

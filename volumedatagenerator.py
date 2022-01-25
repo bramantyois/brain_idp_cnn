@@ -108,10 +108,12 @@ class VolumeDataGeneratorRegression(Sequence):
                 self.output_scaler_inst = MinMaxScaler()
 
             elif self.output_preprocessing =='quantile':
-                # self.output_scaler_inst = QuantileTransformer(n_quantiles=1000, output_distribution='normal')
-                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000)                
-                
-            if self.output_preprocessing == 'standard' or self.output_preprocessing == 'minmax' or self.output_preprocessing == 'quantile':
+                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000)        
+                        
+            elif self.output_preprocessing =='quantile-normal':
+                self.output_scaler_inst = QuantileTransformer(n_quantiles=1000, output_distribution='normal')   
+
+            if self.output_preprocessing in ['standard', 'minmax', 'quantile', 'quantile-normal']:
                 transformed  = self.output_scaler_inst.fit_transform(self.target_df)
                 self.target_df = pd.DataFrame(transformed, index=self.target_df.index, columns=self.column_label_names)
             
