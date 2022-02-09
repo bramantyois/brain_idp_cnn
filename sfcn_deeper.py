@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import sys
 import time
 
+from keras import backend as K
 
-def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
+def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopool'):
     index=int(idx)
 
     batch_size = 8
@@ -32,12 +33,12 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
-        conv_strides=[1, 1, 1, 1, 1, 1],
-        conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
-        pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+        conv_num_filters=[32, 64, 64, 128, 256, 256, 512], 
+        conv_kernel_sizes=[2, 2, 2, 2, 2, 2, 1], 
+        conv_strides=[1, 1, 1, 1, 1, 1, 1],
+        conv_padding=['same', 'same', 'same', 'same',  'same',  'same', 'valid'],
+        pooling_size=[2, 2, 2, 2, 2, 2],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='batch',
         dropout=False,
         #dropout_rate=0.5,
@@ -101,7 +102,7 @@ def sfcn_pyr(idx, only_evaluate=False, name = 'sfcn_pyramid_qn'):
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
 
-def sfcn_glomax(idx, only_evaluate=False, name = 'sfcn_glomax'):
+def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_glomax'):
     index=int(idx)
 
     batch_size = 8
@@ -125,14 +126,15 @@ def sfcn_glomax(idx, only_evaluate=False, name = 'sfcn_glomax'):
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
-        conv_strides=[1, 1, 1, 1, 1, 1],
-        conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
-        pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+        conv_num_filters=[32, 64, 64, 128, 256, 256, 512], 
+        conv_kernel_sizes=[2, 2, 2, 2, 2, 2, 1], 
+        conv_strides=[1, 1, 1, 1, 1, 1, 1],
+        conv_padding=['same', 'same', 'same', 'same',  'same',  'same', 'valid'],
+        pooling_size=[2, 2, 2, 2, 2, 2],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='batch',
         dropout=False,
+        #dropout_rate=0.5,
         softmax=False,
         global_average='max_pool',
         use_float16=False,
@@ -140,7 +142,7 @@ def sfcn_glomax(idx, only_evaluate=False, name = 'sfcn_glomax'):
         batch_size=batch_size, 
         early_stopping=8,
         gpu_list = gpu_list,
-        name=name+'_'+str(index))
+        name=name+'_'+str(index),)
 
     generator_batch_size = model.get_batchsize()
 
@@ -193,8 +195,4 @@ def sfcn_glomax(idx, only_evaluate=False, name = 'sfcn_glomax'):
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-if __name__=='__main__':
-    # for i in range(int(sys.argv[1])): 
-    #     main(i)
-    sfcn_pyr(sys.argv[1])
-    #train_and_evaluate(6)
+    K.clear_session()

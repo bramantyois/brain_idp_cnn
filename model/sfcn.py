@@ -1,7 +1,7 @@
 from itertools import accumulate
 import tensorflow as tf
 from tensorflow import keras 
-from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, LayerNormalization, Input, Dropout, Flatten, Dense, Softmax
+from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, LayerNormalization, Input, Dropout, Flatten,  Softmax, Reshape, UpSampling3D
 from tensorflow.keras.models import Model
 from model.custommodel import CustomTrainStep
 from tensorflow.keras.optimizers import Adam, SGD
@@ -28,10 +28,13 @@ class SFCN():
         conv_padding, 
         pooling_size,
         pooling_type,
-        normalization='none',
+        activation='relu',
+        normalization='batch',
         dropout=False,
-        dropout_rate=0.9,
+        dropout_rate=0.5,
         softmax=False,
+        global_pooling='avg_pool',
+        input_resample='none',        
         batch_size=8,
         early_stopping=8, 
         reduce_lr_on_plateau=1,
@@ -81,9 +84,12 @@ class SFCN():
         self.pooling_size = pooling_size
         self.pooling_type = pooling_type
         self.normalization = normalization
+        self.activation = activation
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
+        self.global_pooling = global_pooling
+        self.input_resample = input_resample
 
         self.early_stopping = early_stopping
         self.reduce_lr_on_plateau = reduce_lr_on_plateau
@@ -123,8 +129,13 @@ class SFCN():
         """
         # Building model
         model_input = Input(shape=self.input_dim, name='input')
-        
+
         x = model_input 
+
+        if self.input_resample == 'downsample':
+            x = MaxPooling3D(name='downsample_0')(x)
+        elif self.input_resample == 'upsample':
+            x = UpSampling3D(name='upsample_0')(x)
 
         for i in range(self.n_conv_layer-1):
             x = Conv3D(
@@ -145,7 +156,7 @@ class SFCN():
             elif self.pooling_type[i] == 'max_pool':
                 x = MaxPooling3D(pool_size=self.pooling_size[i], name='maxpool_' + str(i))(x)
             
-            x = Activation('relu', name='activation_' + str(i))(x)
+            x = Activation(self.activation, name='activation_' + str(i))(x)
 
         x = Conv3D(
             filters=self.conv_num_filters[-1],
@@ -160,13 +171,26 @@ class SFCN():
         elif self.normalization == 'layer':
             x = LayerNormalization(name='layernorm_' + str(self.n_conv_layer-1))(x)
 
-        x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
+        x = Activation(self.activation, name='activation_' + str(self.n_conv_layer-1))(x)
 
-        avg_shape = x.shape.as_list()[1:-1]
-        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_'+ str(self.n_conv_layer))(x)
+        avg_shape = x.shape.as_list()
+
+        if self.global_pooling == 'avg_pool':
+            x = AveragePooling3D(pool_size=avg_shape[1:-1], name='avgpool_'+ str(self.n_conv_layer))(x)
+        elif self.global_pooling == 'max_pool':
+            x = MaxPooling3D(pool_size=avg_shape[1:-1], name='maxpool_'+ str(self.n_conv_layer))(x)
+        else:
+            x_size = avg_shape[1] * avg_shape[2] * avg_shape[3] * avg_shape[4]
+            x = Reshape((1, 1, 1, x_size), name='reshape_'+str(self.n_conv_layer-1)+'.5')(x)
+            x = Conv3D(filters=self.conv_num_filters[-1], kernel_size=1, name='conv_'+str(self.n_conv_layer-1)+'.5')(x)    
+            if self.normalization == 'batch':
+                x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1)+'.5')(x)
+            elif self.normalization == 'layer':
+                x = LayerNormalization(name='layernorm_' + str(self.n_conv_layer-1)+'.5')(x)
+            x = Activation(self.activation, name='activation_' + str(self.n_conv_layer-1)+'.5')(x)
 
         if self.dropout:
-            x = Dropout(rate=self.dropout_rate)(x)
+            x = Dropout(rate=self.dropout_rate, name='dropout_'+str(self.n_conv_layer))(x)
 
         x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer))(x)
         
@@ -178,9 +202,9 @@ class SFCN():
         model_output = x
         
         if self.num_accum == 1:
-            self.model = Model(model_input, model_output)
+            self.model = Model(model_input, model_output, name=self.name)
         else:
-            self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output])
+            self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output], name=self.name)
         self.model.summary()
                 
         # building callbacks
@@ -235,21 +259,6 @@ class SFCN():
             if loss == 'mse':
                 self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
 
-    
-    def train(self, x_train, y_train, batch_size, epochs):
-        """[summary]
-
-        Args:
-            x_train ([type]): [description]
-            y_train ([type]): [description]
-            batch_size ([type]): [description]
-            epochs ([type]): [description]
-        """
-
-        self.history = self.model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=epochs, callbacks=self.callbacks, validation_split=0.4)
-
-        self.save_history()
-
 
     def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None, verbose=2):
         """[summary]
@@ -290,9 +299,6 @@ class SFCN():
                 self.model.load_weights(filepath=filepath)
         else:
             self.model.load_weights(filepath=filepath)
-
-    def predict(self, x):
-        return self.model.predict(x)
 
     def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
         
@@ -365,6 +371,7 @@ class SFCN():
     def get_history(self):
         return self.history
 
+
     def save_history(self):
         filedir = Path.cwd().joinpath('history')
         filedir.mkdir(parents=True, exist_ok=True)
@@ -372,7 +379,6 @@ class SFCN():
 
         df = pd.DataFrame(self.history.history)
         df.to_csv(fn, index=False)
-
 
     def get_batchsize(self):
         return self.batch_size

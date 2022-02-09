@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
-def sfcn_pyramid_small_kern(idx, only_evaluate=False):
-    name = 'sfcn_pyramid_small_kern'
+def sfcn_pyramid_small_kern(idx, only_evaluate=False, name = 'sfcn_pyramid_small_kern_qn'):    
     index=int(idx)
 
     batch_size = 8
@@ -22,6 +21,7 @@ def sfcn_pyramid_small_kern(idx, only_evaluate=False):
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
+    output_preprocess = 'quantile-normal'
 
     idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
     idps_labels = [str(l) for l in idps_labels]
@@ -63,7 +63,7 @@ def sfcn_pyramid_small_kern(idx, only_evaluate=False):
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
-        output_preprocessing='quantile', 
+        output_preprocessing=output_preprocess, 
         idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()

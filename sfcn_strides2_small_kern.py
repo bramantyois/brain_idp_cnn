@@ -13,12 +13,11 @@ import matplotlib.pyplot as plt
 import time
 import sys
 
-def sfcn_pyramid_bigger_kern(idx, only_evaluate=False, name = 'sfcn_pyramid_big_kern_qn'):
-    
+def sfcn_pyramid_str2_skern(idx, only_evaluate=False, name = 'sfcn_pyramid_str2_skern_qn'):
     index=int(idx)
 
     batch_size = 8
-    gpu_list =  range(8)
+    gpu_list =  [4,5,6,7]
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
@@ -39,11 +38,11 @@ def sfcn_pyramid_bigger_kern(idx, only_evaluate=False, name = 'sfcn_pyramid_big_
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
         conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[4, 4, 4, 4, 4, 1], 
-        conv_strides=[1, 1, 1, 1, 1, 1],
+        conv_kernel_sizes=[2, 2, 2, 2, 2, 1], 
+        conv_strides=[2, 2, 2, 2, 2, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
+        pooling_type=['no_pool', 'no_pool', 'no_pool', 'no_pool', 'no_pool'],
         normalization='batch',
         dropout=False,
         #dropout_rate=0.5,
@@ -112,5 +111,5 @@ def sfcn_pyramid_bigger_kern(idx, only_evaluate=False, name = 'sfcn_pyramid_big_
 if __name__=='__main__':
     # for i in range(int(sys.argv[1])): 
     #     main(i)
-    sfcn_pyramid_bigger_kern(0, only_evaluate=True)
-    #train_and_evaluate(1, only_evaluate=True)
+    sfcn_pyramid_str2_skern(sys.argv[1], only_evaluate=False)
+    # sfcn_pyramid_str2_skern(0)

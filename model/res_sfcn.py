@@ -1,4 +1,3 @@
-from re import S
 import tensorflow as tf
 from tensorflow import keras 
 from tensorflow.keras.layers import Add, Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, Input, Dropout, Flatten, Dense, Softmax
@@ -20,10 +19,9 @@ import os
 def residual_block(
     x, 
     filter_num, 
-    kernel_size=3, 
+    kernel_size=2, 
     padding = 'same',
     downsample=True, 
-    downsample_avgpool=True, 
     prefix='res', 
     postfix='0'):
     """[summary]
@@ -58,14 +56,7 @@ def residual_block(
                name = prefix + '_conv1_' + postfix)(y)
 
     if downsample:
-        ds_stride=2
-        if downsample_avgpool:
-            x = AveragePooling3D(
-                pool_size=2, 
-                padding='same',
-                name= prefix + '_ds_pool_' + postfix)(x)
-            ds_stride = 1
-     
+        ds_stride=2     
         x = Conv3D(kernel_size=1,
                 strides=ds_stride,
                 filters=filter_num,
@@ -90,15 +81,16 @@ class ResSFCN():
         conv_padding, 
         # pooling_size,
         # pooling_type,
-        batch_norm=True,
-        dropout=True,
+        normalization='batch',
+        dropout=False,
         dropout_rate=0.5,
         softmax=False,
-        use_float16=False,
+        global_pooling='avg_pool',
+        batch_size=8,
         early_stopping=16, 
         reduce_lr_on_plateau=1,
+        use_float16=True,
         gpu_list = range(8),
-        res_pooling=True,
         name='ResSFCN'):
         """[summary]
 
@@ -142,13 +134,13 @@ class ResSFCN():
         self.conv_padding = conv_padding
         # self.pooling_size = pooling_size
         # self.pooling_type = pooling_type
-        self.batch_norm = batch_norm
+        self.normalization = normalization
         self.dropout = dropout
         self.dropout_rate = dropout_rate
         self.softmax = softmax
-        self.res_pooling = res_pooling
-        self.name = name
+        self.global_pooling = global_pooling
 
+        self.name = name
 
         self.early_stopping = early_stopping
         self.reduce_lr_on_plateau = reduce_lr_on_plateau
@@ -162,13 +154,20 @@ class ResSFCN():
 
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list_str
 
-        gpus = tf.config.list_logical_devices('GPU')   
-
         if use_float16:
             tf.keras.mixed_precision.set_global_policy("mixed_float16") 
-            
-        self.strategy = MirroredStrategy(gpus)
-        with self.strategy.scope():
+
+        self.num_gpu = len(gpu_list)     
+        self.multi_gpu = self.num_gpu > 1
+
+        self.batch_size = batch_size
+        self.num_accum = 1
+
+        if self.multi_gpu:
+            self.strategy = MirroredStrategy(tf.config.list_logical_devices('GPU'))
+            with self.strategy.scope():
+                self.build()
+        else: 
             self.build()
     
 
@@ -187,7 +186,6 @@ class ResSFCN():
                 filter_num=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
                 downsample=True, 
-                downsample_avgpool=self.res_pooling,
                 postfix=str(i)
             )
 
@@ -196,29 +194,27 @@ class ResSFCN():
             filter_num=self.conv_num_filters[-1],
             kernel_size=self.conv_kernel_sizes[-1],
             downsample=False, 
-            downsample_avgpool=self.res_pooling,
             postfix=str(self.n_conv_layer-1))
 
-        # if self.batch_norm:
-        #     x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
-       
-        # x = Activation('relu', name='activation_' + str(self.n_conv_layer-1))(x)
-
-        avg_shape = x.shape.as_list()[1:-1]
-        x = AveragePooling3D(pool_size=avg_shape, name='avgpool_'+ str(self.n_conv_layer))(x)
+      
+        avg_shape = x.shape.as_list()
+        if self.global_pooling == 'avg_pool':
+            x = AveragePooling3D(pool_size=avg_shape[1:-1], name='avgpool_'+ str(self.n_conv_layer))(x)
+        elif self.global_pooling == 'max_pool':
+            x = MaxPooling3D(pool_size=avg_shape[1:-1], name='maxpool_'+ str(self.n_conv_layer))(x)
+        
 
         if self.dropout:
-            x = Dropout(rate=self.dropout_rate)(x)
+            x = Dropout(rate=self.dropout_rate, name='dropout_'+str(self.n_conv_layer))(x)
 
         x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer))(x)
         
         x = Flatten()(x)
+        
         if self.softmax:
             x = Softmax()(x)
         
         model_output = x
-        # x = Flatten()(x)
-        # model_output = Dense(units=self.output_dim)(x)
         
         self.model = Model(model_input, model_output)
         self.model.summary()
@@ -276,7 +272,7 @@ class ResSFCN():
         self.save_history()
 
 
-    def train_generator(self, train_generator, valid_generator, batch_size, epochs, workers=4, queue_size=None):
+    def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None, verbose=2):
         """[summary]
 
         Args:
@@ -287,18 +283,18 @@ class ResSFCN():
             workers (int, optional): [description]. Defaults to 4.
         """
         if queue_size==None:
-            queue_size=batch_size
+           queue_size=workers
 
         self.history = self.model.fit(
-            x=train_generator, 
-            validation_data=valid_generator, 
-            batch_size=batch_size, 
-            epochs=epochs, 
-            callbacks=self.callbacks,
-            workers=workers,
-            max_queue_size=queue_size,
-            verbose=2)
-        
+            x = train_generator, 
+            validation_data = valid_generator, 
+            batch_size = self.batch_size, 
+            epochs = epochs, 
+            callbacks = self.callbacks,
+            workers = workers,
+            max_queue_size = queue_size,
+            verbose = verbose)
+                
         self.save_history()   
 
 
@@ -310,20 +306,24 @@ class ResSFCN():
         filepath : [type]
             [description]
         """
-        with self.strategy.scope():
+        if self.multi_gpu:
+            with self.strategy.scope():
+                self.model.load_weights(filepath=filepath)
+        else:
             self.model.load_weights(filepath=filepath)
 
 
     def predict(self, x):
         return self.model.predict(x)
 
-    def evaluate_generator(self, x_generator, batch_size, filename=None, workers=4, queue_size=None):
-        if queue_size==None:
-            queue_size=batch_size
 
+    def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
+        if queue_size==None:
+           queue_size=workers
+        
         y_pred = self.model.predict(
             x = x_generator,
-            batch_size=batch_size, 
+            batch_size=self.batch_size, 
             workers=workers,
             max_queue_size=queue_size)
 
@@ -387,6 +387,7 @@ class ResSFCN():
     def get_history(self):
         return self.history
 
+
     def save_history(self):
         filedir = Path.cwd().joinpath('history')
         filedir.mkdir(parents=True, exist_ok=True)
@@ -395,5 +396,6 @@ class ResSFCN():
         df = pd.DataFrame(self.history.history)
         df.to_csv(fn, index=False)
 
-
         
+    def get_batchsize(self):
+        return self.batch_size

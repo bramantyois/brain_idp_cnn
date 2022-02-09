@@ -1,11 +1,23 @@
-#from sfcn_smaller_kernel import sfcn_pyramid_small_kern
-#from sfcn_bigger_kern import sfcn_pyramid_bigger_kern
+# from sfcn_smaller_kernel import sfcn_pyramid_small_kern
 # from sfcn_pyr_strides_2 import sfcn_pyramid_strides
-from sfcn_pyr_avg_plat import sfcn_pyr_avg
-#from sfcn_pyr import sfcn_pyr
-#from sfcn_vanilla import sfcn_vanilla
-from sfcn_pyr_strides_2 import sfcn_pyramid_strides2
-from sfcn_pyr_strides_3 import sfcn_pyramid_strides3
+# from sfcn_pyr_avg_plat import sfcn_pyr_avg
+# from sfcn_pyr import sfcn_pyr
+# from sfcn_vanilla import sfcn_vanilla
+# from sfcn_pyr_strides_2 import sfcn_pyramid_strides2
+# from sfcn_pyr_strides_3 import sfcn_pyramid_strides3
+
+# from sfcn_large_nfil import sfcn_lfil_shallow_0, sfcn_lfil_shallow_1, sfcn_lfil_shallow_2
+# from sfcn_bigger_kern import sfcn_pyramid_bigger_kern
+# from sfcn_sigmoid import sfcn_sigmoid
+
+# from sfcn_deeper import sfcn_deeper_k2_glomax
+# from sfcn_pyr_avg_plat import sfcn_glomax
+# from sfcn_large_nfil import sfcn_lfil_shallow_glomax
+
+# from sfcn_res import res_sfcn_glomax
+
+from sfcn_shallow import sfcn_lfil_shallow_0_glomax
+from sfcn_shallow import sfcn_lfil_shallow_ds_glomax
 
 if __name__=='__main__':
 
@@ -35,18 +47,92 @@ if __name__=='__main__':
     # except:
     #     print('skipping sfcn pyr')
 
-    try:
-        sfcn_pyr_avg(0)
-    except:
-        print('skipping sfcn pyr avg')
     #print('how you doin')
     
-    try:
-        sfcn_pyramid_strides2(0)
-    except:
-        print('skipping sfcn psfcn_pyramid_strides2')
+    # try:
+    #     sfcn_pyramid_strides2(0)
+    # except:
+    #     print('skipping sfcn psfcn_pyramid_strides2')
+
+    # try:
+    #     sfcn_pyramid_strides3(0)
+    # except:
+    #     print('skipping sfcn psfcn_pyramid_strides3')
+
+    # try:
+    #     sfcn_pyr_avg(2)
+    # except:
+    #     print('skipping sfcn pyr avg')
+        
+    # try:
+    #     sfcn_pyramid_small_kern(1)
+    # except:
+    #     print('skipping smaller kernel sfcn')
+
+
+    # try:
+    #     sfcn_sigmoid(0)
+    # except:
+    #     print('skipping sigmoid sfcn')
+         
+    # try:
+    #     sfcn_lfil_shallow(3)
+    # except:
+    #     print('skipping shallow sfcn')
+        
+    # try:
+    #     sfcn_pyramid_bigger_kern(1)
+    # except:
+    #     print('skipping smaller kerne
+ 
+    # try:
+    #     sfcn_lfil_shallow_0(0)
+    # except:
+    #     print('skipping shallow sfcn 0')
+
+    
+    # try:
+    #     sfcn_lfil_shallow_1(0)
+    # except:
+    #     print('skipping shallow sfcn 1')
+
+        
+    # try:
+    #     sfcn_lfil_shallow_2(0)
+    # except:
+    #     print('skipping shallow sfcn 2')
+
+    # try:
+    #     sfcn_deeper_k2_nopool(1)
+    # except:
+    #     print('skipping deeper sfcn')
+
+    # try:
+    #     sfcn_deeper_k2_glomax(0)
+    # except:
+    #     print('skipping sfcn_deeper_k2_glomax')
+
+    # try:
+    #     sfcn_glomax(0)
+    # except:
+    #     print('skipping sfcn_glomax')
+ 
+    # try:
+    #     sfcn_lfil_shallow_glomax(0)
+    # except:
+    #     print('skipping sfcn_lfil_shallow_glomax')
+
+    # try:
+    #     res_sfcn_glomax(0)
+    # except: 
+    #     print('skipping res_sfcn')
 
     try:
-        sfcn_pyramid_strides3(0)
-    except:
-        print('skipping sfcn psfcn_pyramid_strides3')
+        sfcn_lfil_shallow_ds_glomax(1)
+    except: 
+       print('skipping ds shallow')
+
+    try:
+        sfcn_lfil_shallow_0_glomax(1)
+    except: 
+        print('skipping res_sfcn')
