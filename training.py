@@ -16,8 +16,17 @@
 
 # from sfcn_res import res_sfcn_glomax
 
-from sfcn_shallow import sfcn_lfil_shallow_0_glomax
-from sfcn_shallow import sfcn_lfil_shallow_ds_glomax
+# from sfcn_shallow import sfcn_lfil_shallow_0_glomax
+# from sfcn_shallow import sfcn_lfil_shallow_ds_glomax
+
+# from sfcn_vanilla_mod import sfcn_glomax_ds
+
+from sfcn_deeper import sfcn_deeper_ks_glomax_us
+from sfcn_vanilla import sfcn_vanilla
+
+from sfcn_norm import sfcn_layer_norm
+from sfcn_norm import sfcn_no_norm
+
 
 if __name__=='__main__':
 
@@ -127,12 +136,31 @@ if __name__=='__main__':
     # except: 
     #     print('skipping res_sfcn')
 
-    try:
-        sfcn_lfil_shallow_ds_glomax(1)
-    except: 
-       print('skipping ds shallow')
+    # try:
+    #     sfcn_glomax_ds(0)
+    # except:
+    #     print('sfcn ds')
 
-    try:
-        sfcn_lfil_shallow_0_glomax(1)
-    except: 
-        print('skipping res_sfcn')
+    # try:
+    #     sfcn_lfil_shallow_ds_glomax(2)
+    # except: 
+    #    print('skipping ds shallow')
+
+    # try:
+    #     sfcn_lfil_shallow_0_glomax(2)
+    # except: 
+    #     print('shallow res_sfcn')
+
+    # try:
+    #     sfcn_deeper_ks_glomax_us(0)
+    # except:
+    #     print('skipping upsamples')
+
+    # try:
+    #     sfcn_vanilla(0)
+    # except:
+    #     print('skipping vanilla')
+
+    # sfcn_layer_norm(0)
+
+    sfcn_no_norm(0)

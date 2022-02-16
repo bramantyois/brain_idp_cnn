@@ -10,10 +10,7 @@ import sys
 import time
 
 
-def sfcn_vanilla(idx, only_evaluate=False):
-    name = 'sfcn_vanilla'
-    index=int(idx)
-
+def sfcn_vanilla(idx, only_evaluate=False, name = 'sfcn_vanilla'):
     index=int(idx)
 
     batch_size = 8
@@ -21,6 +18,7 @@ def sfcn_vanilla(idx, only_evaluate=False):
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
+    output_preprocessing = 'quantile-normal'
 
     idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
     idps_labels = [str(l) for l in idps_labels]
@@ -44,8 +42,8 @@ def sfcn_vanilla(idx, only_evaluate=False):
         pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='batch',
         dropout=False,
-        #dropout_rate=0.5,
         softmax=False,
+        global_pooling='avg_pool',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
@@ -62,7 +60,7 @@ def sfcn_vanilla(idx, only_evaluate=False):
         #num_reg_classes=num_output, 
         dim=input_dim,
         input_preprocessing=input_preprocess,
-        output_preprocessing='quantile', 
+        output_preprocessing=output_preprocessing, 
         idps_labels=idps_labels)
 
     scaler_instance = train_gen.get_scaler_instance()

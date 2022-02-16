@@ -9,6 +9,8 @@ import time
 
 from keras import backend as K
 
+filter_num = [64, 64, 128, 256, 256]
+
 
 def sfcn_lfil_shallow_0(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallow_0_qn'):
     index=int(idx)
@@ -34,7 +36,7 @@ def sfcn_lfil_shallow_0(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 128, 256, 512], 
+        conv_num_filters=filter_num, 
         conv_kernel_sizes=[3, 3, 3, 3, 1], 
         conv_strides=[1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'valid'],
@@ -127,7 +129,7 @@ def sfcn_lfil_shallow_1(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 128, 256, 512], 
+        conv_num_filters=filter_num, 
         conv_kernel_sizes=[3, 3, 3, 3, 1], 
         conv_strides=[2, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'valid'],
@@ -220,7 +222,7 @@ def sfcn_lfil_shallow_2(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 128, 256, 512], 
+        conv_num_filters=filter_num, 
         conv_kernel_sizes=[3, 3, 3, 3, 1], 
         conv_strides=[2, 2, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'valid'],
@@ -313,7 +315,7 @@ def sfcn_lfil_shallow_0_glomax(idx, only_evaluate=False, name = 'sfcn_large_nfil
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 512], 
+        conv_num_filters=filter_num, 
         conv_kernel_sizes=[3, 3, 3, 3, 1], 
         conv_strides=[1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'valid'],
@@ -387,7 +389,7 @@ def sfcn_lfil_shallow_ds_glomax(idx, only_evaluate=False, name = 'sfcn_large_nfi
     index=int(idx)
 
     batch_size = 8
-    gpu_list =  [4,5,6,7]
+    gpu_list =  range(8)
     cpu_workers = 8
     epochs_num = 64
     input_preprocess = 'standardize'
@@ -407,7 +409,7 @@ def sfcn_lfil_shallow_ds_glomax(idx, only_evaluate=False, name = 'sfcn_large_nfi
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 512], 
+        conv_num_filters=filter_num, 
         conv_kernel_sizes=[3, 3, 3, 3, 1], 
         conv_strides=[1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'valid'],
