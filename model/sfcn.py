@@ -6,8 +6,8 @@ from tensorflow.keras.models import Model
 from model.custommodel import CustomTrainStep
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from tensorflow_addons.layers import GroupNormalization, WeightNormalization
 from tensorflow.distribute import MirroredStrategy
-#from tensorflow_addons.optimizers import extend_with_decoupled_weight_decay
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 import pandas as pd
@@ -30,6 +30,8 @@ class SFCN():
         pooling_type,
         activation='relu',
         normalization='batch',
+        groupnorm_n = 4,
+        weight_normalization=False,
         dropout=False,
         dropout_rate=0.5,
         softmax=False,
@@ -84,6 +86,8 @@ class SFCN():
         self.pooling_size = pooling_size
         self.pooling_type = pooling_type
         self.normalization = normalization
+        self.groupnorm_n = groupnorm_n
+        self.weight_normalization = weight_normalization
         self.activation = activation
         self.dropout = dropout
         self.dropout_rate = dropout_rate
@@ -138,19 +142,26 @@ class SFCN():
             x = UpSampling3D(name='upsample_0')(x)
 
         for i in range(self.n_conv_layer-1):
-            x = Conv3D(
+            c = Conv3D(
                 filters=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
                 strides=self.conv_strides[i],
                 padding=self.conv_padding[i],
-                name='conv_' + str(i)
-                )(x)
+                name='conv_' + str(i))
+            
+            if self.weight_normalization:
+                x = WeightNormalization(c)(x)
+            else:
+                x = c(x)
+
             
             if self.normalization == 'batch':
                 x = BatchNormalization(name='batchnorm_' + str(i))(x)
             elif self.normalization == 'layer':
                 x = LayerNormalization(name='layernorm_' + str(i))(x)
-
+            elif self.normalization == 'group':
+                x = GroupNormalization(name='layernorm_' + str(i), groups=self.groupnorm_n)(x)
+            
             if self.pooling_type[i] == 'avg_pool':
                 x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
             elif self.pooling_type[i] == 'max_pool':
@@ -158,36 +169,33 @@ class SFCN():
             
             x = Activation(self.activation, name='activation_' + str(i))(x)
 
-        x = Conv3D(
+        c = Conv3D(
             filters=self.conv_num_filters[-1],
             kernel_size=self.conv_kernel_sizes[-1],
             strides=self.conv_strides[-1],
             padding=self.conv_padding[-1],
             name='conv_' + str(self.n_conv_layer-1)
-            )(x)
+            )
+
+        if self.weight_normalization:
+            x = WeightNormalization(c)(x)
+        else:
+            x = c(x)
 
         if self.normalization == 'batch':
             x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
         elif self.normalization == 'layer':
             x = LayerNormalization(name='layernorm_' + str(self.n_conv_layer-1))(x)
+        elif self.normalization == 'group':
+            x = GroupNormalization(name='groupnorm_' + str(self.n_conv_layer-1), groups=self.groupnorm_n)(x)
 
         x = Activation(self.activation, name='activation_' + str(self.n_conv_layer-1))(x)
 
         avg_shape = x.shape.as_list()
-
         if self.global_pooling == 'avg_pool':
             x = AveragePooling3D(pool_size=avg_shape[1:-1], name='avgpool_'+ str(self.n_conv_layer))(x)
         elif self.global_pooling == 'max_pool':
             x = MaxPooling3D(pool_size=avg_shape[1:-1], name='maxpool_'+ str(self.n_conv_layer))(x)
-        else:
-            x_size = avg_shape[1] * avg_shape[2] * avg_shape[3] * avg_shape[4]
-            x = Reshape((1, 1, 1, x_size), name='reshape_'+str(self.n_conv_layer-1)+'.5')(x)
-            x = Conv3D(filters=self.conv_num_filters[-1], kernel_size=1, name='conv_'+str(self.n_conv_layer-1)+'.5')(x)    
-            if self.normalization == 'batch':
-                x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1)+'.5')(x)
-            elif self.normalization == 'layer':
-                x = LayerNormalization(name='layernorm_' + str(self.n_conv_layer-1)+'.5')(x)
-            x = Activation(self.activation, name='activation_' + str(self.n_conv_layer-1)+'.5')(x)
 
         if self.dropout:
             x = Dropout(rate=self.dropout_rate, name='dropout_'+str(self.n_conv_layer))(x)

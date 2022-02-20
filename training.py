@@ -21,11 +21,11 @@
 
 # from sfcn_vanilla_mod import sfcn_glomax_ds
 
-from sfcn_deeper import sfcn_deeper_ks_glomax_us
-from sfcn_vanilla import sfcn_vanilla
+# from sfcn_deeper import sfcn_deeper_ks_glomax_us
+# from sfcn_vanilla import sfcn_vanilla
 
-from sfcn_norm import sfcn_layer_norm
-from sfcn_norm import sfcn_no_norm
+# from sfcn_norm import sfcn_layer_norm
+from sfcn_norm import sfcn_group_norm8, sfcn_group_norm32
 
 
 if __name__=='__main__':
@@ -163,4 +163,7 @@ if __name__=='__main__':
 
     # sfcn_layer_norm(0)
 
-    sfcn_no_norm(0)
+    #sfcn_no_norm(0)
+    
+    sfcn_group_norm8(0)
+    sfcn_group_norm32(0)
