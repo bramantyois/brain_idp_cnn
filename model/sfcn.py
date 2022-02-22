@@ -1,5 +1,3 @@
-from itertools import accumulate
-from sklearn.decomposition import KernelPCA
 import tensorflow as tf
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, LayerNormalization, Input, Dropout, Flatten,  Softmax, Reshape, UpSampling3D
@@ -19,7 +17,7 @@ from datetime import date
 import os
 
 
-class SFCN():
+class SFCN:
     def __init__(
         self,
         input_dim,
@@ -28,8 +26,8 @@ class SFCN():
         conv_kernel_sizes, 
         conv_strides,
         conv_padding, 
-        pooling_size,
         pooling_type,
+        pooling_size,
         activation='relu',
         normalization='batch',
         groupnorm_n = 4,
@@ -45,38 +43,56 @@ class SFCN():
         use_float16=False,
         gpu_list = range(8),
         name='SFCN'):
-        """[summary]
+        """_summary_
 
         Parameters
         ----------
-        input_dim : [type]
-            [description]
-        output_dim : [type]
-            [description]
-        conv_num_filters : [type]
-            [description]
-        conv_kernel_sizes : [type]
-            [description]
-        conv_strides : [type]
-            [description]
-        conv_padding : [type]
-            [description]
-        pooling_size : [type]
-            [description]
-        pooling_type : [type]
-            [description]
-        batch_norm : bool, optional
-            [description], by default True
+        input_dim : list of int
+            dimension of input
+        output_dim : int
+            num of classes
+        conv_num_filters : list of int
+            number of filter for each layer. lenght determines depth
+        conv_kernel_sizes : list of int
+            kernel size. length should be the same as conv_num_filters
+        conv_strides : list of int
+            strides. length should be the same as conv_num_filters
+        conv_padding : list or string
+            choose 'same' or 'valid'.
+        pooling_size : list of int
+            pooling size. length should be the same as len(conv_num_filters)-1
+        pooling_type : list or string
+            pooling type. choose 'avg_pool', 'max_pool', or 'none' for not using pooling.
+        activation : str, optional
+            activation for each layer, by default 'relu'
+        normalization : str, optional
+            normalization for each layer. can be 'batch', 'layer' or 'group'. 'none' for not using normalization. by default 'batch'.
+        groupnorm_n : int, optional
+            number of group for group normalization, by default 4
+        weight_standardization : bool, optional
+            using weight normalization if True, by default False
         dropout : bool, optional
-            [description], by default True
+            add dropout at the end of the network, by default False
         dropout_rate : float, optional
-            [description], by default 0.9
+            dropout rate it dropout is True, by default 0.5
         softmax : bool, optional
-            [description], by default False
-        gpu_num : int, optional
-            [description], by default 2
+            use softmax. use only for classification. by default False
+        global_pooling : str, optional
+            pooling before last 1x1 convolution. choice are 'avg_pool' or 'max_pool'. by default 'avg_pool'
+        input_resample : str, optional
+            'downsample' or 'upsample' input. use downsample to reduce memory. by default 'none'
+        batch_size : int, optional
+            batchsize, by default 8
+        early_stopping : int, optional
+            num epochs before halting the training, by default 8
+        reduce_lr_on_plateau : int, optional
+            number of waiting epoch of, by default 1
+        use_float16 : bool, optional
+            use 16 bit floating point operation. saves GPU memory, by default False
+        gpu_list : _type_, optional
+            list of GPU to be used, by default range(8)
         name : str, optional
-            [description], by default 'SFCN'
+            network name, by default 'SFCN'
         """
         
         self.input_dim = input_dim
@@ -118,7 +134,6 @@ class SFCN():
         self.multi_gpu = self.num_gpu > 1
 
         self.batch_size = batch_size
-        self.num_accum = 1
 
         if self.multi_gpu:
             self.strategy = MirroredStrategy(tf.config.list_logical_devices('GPU'))
@@ -126,12 +141,10 @@ class SFCN():
                 self.build()
         else: 
             self.build()
-        #os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_index)
-        #with tf.device("gpu:"+str(gpu_index)):
-        #    print("tf.keras will run on GPU: {}".format(gpu_index))
 
     def build(self):
-        """[summary]
+        """
+        Build the SFCN Network
         """
         # Building model
         model_input = Input(shape=self.input_dim, name='input')
@@ -225,10 +238,8 @@ class SFCN():
         
         model_output = x
         
-        if self.num_accum == 1:
-            self.model = Model(model_input, model_output, name=self.name)
-        else:
-            self.model = CustomTrainStep(n_gradients=self.num_accum, inputs=[model_input], outputs=[model_output], name=self.name)
+        self.model = Model(model_input, model_output, name=self.name)
+        
         self.model.summary()
                 
         # building callbacks
@@ -249,50 +260,46 @@ class SFCN():
 
 
     def compile(self, learning_rate=1e-6, optimizer='Adam', loss = 'mse'):
-        """[summary]
+        """compile the model. call when starting training
 
-        Args:
-            learning_rate ([type]): [description]
-            optimizer (str, optional): [description]. Defaults to 'adam'.
-            loss (str, optional): [description]. Defaults to 'mse'.
+        Parameters
+        ----------
+        learning_rate : float, optional
+            learning rate of the optimizer, by default 1e-6
+        optimizer : str, optional
+            can be Adam or SGD, by default 'Adam'
+        loss : str, optional
+            loss function, by default 'mse'
         """
-        
+        if optimizer=='Adam':
+            self.optimizer = Adam(learning_rate=learning_rate)
+        elif optimizer=='SGD':
+            self.optimizer = SGD(learning_rate=learning_rate)
+    
         if self.multi_gpu:
-            with self.strategy.scope():
-                self.learning_rate = learning_rate
-                if optimizer=='Adam':
-                    self.optimizer = Adam(learning_rate=learning_rate)
-                elif optimizer=='SGD':
-                    self.optimizer = SGD(learning_rate=learning_rate)
-                # elif optimizer=='AdamW':
-                #     MyAdamW = extend_with_decoupled_weight_decay(Adam)
-                #     self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
-
-                if loss == 'mse':
+            with self.strategy.scope():            
                     self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])       
         else:           
-            self.learning_rate = learning_rate
-            if optimizer=='Adam':
-                self.optimizer = Adam(learning_rate=learning_rate)
-            elif optimizer=='SGD':
-                self.optimizer = SGD(learning_rate=learning_rate)
-            #elif optimizer=='AdamW':
-                #MyAdamW = extend_with_decoupled_weight_decay(Adam)
-                #self.optimizer = MyAdamW(learning_rate=learning_rate, weight_decay=0.001)
-
-            if loss == 'mse':
-                self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
+            self.model.compile(optimizer=self.optimizer, loss=loss, metrics=['mae'])
 
 
     def train_generator(self, train_generator, valid_generator, epochs, workers=4, queue_size=None, verbose=2):
-        """[summary]
+        """training the model with volumedatagenerator
 
-        Args:
-            train_generator ([type]): [description]
-            valid_generator ([type]): [description]
-            batch_size ([type]): [description]
-            epochs ([type]): [description]
-            workers (int, optional): [description]. Defaults to 4.
+        Parameters
+        ----------
+        train_generator : volumedatagenerator
+            training data generator 
+        valid_generator : volumedatagenerator
+            validation data generator
+        epochs : int
+            number of epochs
+        workers : int, optional
+            number of cpu workers for the generator. pick a bigger number if GPU is mostly idle. by default 4
+        queue_size : int, optional
+            data queue size. pick a bigger number if GPU is mostly idle. by default None
+        verbose : int, optional
+            training status. pick 1 for silent, 2 for more detailed, by default 2
         """
         if queue_size==None:
            queue_size=workers
@@ -311,12 +318,12 @@ class SFCN():
 
 
     def load_weights(self, filepath):
-        """[summary]
+        """loading weights into the model
 
         Parameters
         ----------
-        filepath : [type]
-            [description]
+        filepath : str
+            weights path
         """
         if self.multi_gpu:
             with self.strategy.scope():
@@ -324,8 +331,21 @@ class SFCN():
         else:
             self.model.load_weights(filepath=filepath)
 
+
     def evaluate_generator(self, x_generator, filename=None, workers=4, queue_size=None):
-        
+        """evaluate the model by feeding test set volumegenerator
+
+        Parameters
+        ----------
+        x_generator : volumedatagenerator
+            test set generator
+        filename : str, optional
+            file name for result file, if none, using self.name. by default None
+        workers : int, optional
+            cpu worker for the generator, by default 4
+        queue_size : int, optional
+            queue size for the generator, by default None
+        """
         if queue_size==None:
            queue_size=workers
         
