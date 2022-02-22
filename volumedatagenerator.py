@@ -21,28 +21,31 @@ class VolumeDataGeneratorRegression(Sequence):
         input_preprocessing='none',
         output_preprocessing='none',
         output_scaler=None,
-        idps_labels = list(),
-        verbose=False):
-        """[summary]
+        idps_labels = list()):
+        """Data Generator for three dimensional data for regression purposes
 
         Parameters
         ----------
-        sample_df : [type]
-            [description]
+        sample_df : pd.DataFrame
+            dataframe containing path of .nii.gz file and its descriptors
+        sample_stats_df : pd.DataFrame
+            dataframe containing statistics of images correspond to sample_df
         batch_size : int, optional
-            [description], by default 16
+            batch size, by default 8
         shuffle : bool, optional
-            [description], by default True
+            shuffle the order if True, by default True
         dim : tuple, optional
-            [description], by default (160, 160, 91)
+            dimension of input. if smaller than the actual data, will crop. by default (160, 182, 160)
         num_channels : int, optional
-            [description], by default 1
-        num_reg_classes : int, optional
-            [description], by default 1
+            num of channels, by default 1
+        input_preprocessing : str, optional
+            preprocessing of input. 'standardize' of standardization, 'normalize' for normaliztion. by default 'none'
         output_preprocessing : str, optional
-            [description], by default 'none'
-        verbose : bool, optional
-            [description], by default False
+            output label preprocessing.chooses 'standard', 'minmax','quantile' or 'quantile-normal' by default 'none'
+        output_scaler : sklearn scaler instance, optional
+            scaler instance. use this when having external instances e.g scaler fitted on training data. override output_preprocessing. by default None
+        idps_labels : list, optional
+            list of idps labels to be trained for. lenghts determines output size, by default list()
         """
         #sample_df = sample_df.copy().dropna()
 
@@ -67,7 +70,6 @@ class VolumeDataGeneratorRegression(Sequence):
         self.dim = dim
         self.num_channels = num_channels
         self.num_classes = len(self.target_df.columns)
-        self.verbose = verbose        
 
         self.input_preprocessing = input_preprocessing
 
@@ -78,24 +80,6 @@ class VolumeDataGeneratorRegression(Sequence):
         self.preprocess_output()
         self.on_epoch_end()
 
-
-    # def compute_input_preprocessing_param(self):
-    #     if self.input_preprocessing=='standardize':
-    #         self.input_mean = np.zeros(self.num_data)
-    #         self.input_std = np.zeros(self.num_data)
-
-    #         for i in range(self.num_data):
-    #             img = nib.load(self.sample_df.iloc[i]).get_fdata()
-    #             self.input_mean[i] = np.mean(img)
-    #             self.input_std[i] = np.std(img)
-
-    #     elif self.input_preprocessing=='normalize':
-    #         self.input_min = np.zeros(self.num_data)
-    #         self.input_range = np.zeros(self.num_data)
-    #         for i in range(self.num_data):
-    #             img = nib.load(self.sample_df.iloc[i]).get_fdata()
-    #             self.input_min[i] = np.min(img)
-    #             self.input_range[i] = np.max(img) - self.input_min[i]
 
     def preprocess_output(self):
         """output label preprocessing
@@ -127,6 +111,13 @@ class VolumeDataGeneratorRegression(Sequence):
     
 
     def get_scaler_instance(self):
+        """return scaler instance
+
+        Returns
+        -------
+        sklearn scaler instance
+            _description_
+        """
         return self.output_scaler_inst
 
 
@@ -149,6 +140,18 @@ class VolumeDataGeneratorRegression(Sequence):
             np.random.shuffle(self.indices)
 
     def crop(self, input):
+        """croping input so that it has size of self.input_dim
+
+        Parameters
+        ----------
+        input : numpy volume
+            input volume
+
+        Returns
+        -------
+        numpy volume
+            cropped input
+        """
         output_shape = self.dim
         input_shape = input.shape
 
