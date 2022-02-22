@@ -25,7 +25,7 @@
 # from sfcn_vanilla import sfcn_vanilla
 
 # from sfcn_norm import sfcn_layer_norm
-from sfcn_norm import sfcn_group_norm8, sfcn_group_norm32
+from scripts.sfcn_norm import sfcn_group_norm16, sfcn_wnorm16, sfcn_wnorm8
 
 
 if __name__=='__main__':
@@ -165,5 +165,9 @@ if __name__=='__main__':
 
     #sfcn_no_norm(0)
     
-    sfcn_group_norm8(0)
-    sfcn_group_norm32(0)
+    # sfcn_group_norm8(0)
+    # sfcn_group_norm32(0)
+
+    #sfcn_wnorm8(0)
+    # sfcn_wnorm16(0)
+    sfcn_group_norm16(0)

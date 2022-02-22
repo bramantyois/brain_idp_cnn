@@ -1,4 +1,5 @@
 from itertools import accumulate
+from sklearn.decomposition import KernelPCA
 import tensorflow as tf
 from tensorflow import keras 
 from tensorflow.keras.layers import Activation, Conv3D, MaxPooling3D, AveragePooling3D, BatchNormalization, LayerNormalization, Input, Dropout, Flatten,  Softmax, Reshape, UpSampling3D
@@ -17,6 +18,7 @@ from pathlib import Path
 from datetime import date
 import os
 
+
 class SFCN():
     def __init__(
         self,
@@ -31,7 +33,7 @@ class SFCN():
         activation='relu',
         normalization='batch',
         groupnorm_n = 4,
-        weight_normalization=False,
+        weight_standardization=False,
         dropout=False,
         dropout_rate=0.5,
         softmax=False,
@@ -87,7 +89,7 @@ class SFCN():
         self.pooling_type = pooling_type
         self.normalization = normalization
         self.groupnorm_n = groupnorm_n
-        self.weight_normalization = weight_normalization
+        self.weight_standardization = weight_standardization
         self.activation = activation
         self.dropout = dropout
         self.dropout_rate = dropout_rate
@@ -141,18 +143,21 @@ class SFCN():
         elif self.input_resample == 'upsample':
             x = UpSampling3D(name='upsample_0')(x)
 
-        for i in range(self.n_conv_layer-1):
-            c = Conv3D(
-                filters=self.conv_num_filters[i],
-                kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
-                name='conv_' + str(i))
-            
-            if self.weight_normalization:
-                x = WeightNormalization(c)(x)
+        for i in range(self.n_conv_layer-1):            
+            if self.weight_standardization:
+                x = Conv3D(
+                    filters=self.conv_num_filters[i],
+                    kernel_size=self.conv_kernel_sizes[i],
+                    strides=self.conv_strides[i],
+                    padding=self.conv_padding[i],
+                    name='conv_' + str(i), kernel_regularizer=ws_reg3d)(x)
             else:
-                x = c(x)
+                x = Conv3D(
+                    filters=self.conv_num_filters[i],
+                    kernel_size=self.conv_kernel_sizes[i],
+                    strides=self.conv_strides[i],
+                    padding=self.conv_padding[i],
+                    name='conv_' + str(i))(x)
 
             
             if self.normalization == 'batch':
@@ -177,10 +182,21 @@ class SFCN():
             name='conv_' + str(self.n_conv_layer-1)
             )
 
-        if self.weight_normalization:
-            x = WeightNormalization(c)(x)
+        if self.weight_standardization:
+            x = Conv3D(
+                filters=self.conv_num_filters[i],
+                kernel_size=self.conv_kernel_sizes[i],
+                strides=self.conv_strides[i],
+                padding=self.conv_padding[i],
+                name='conv_' + str(self.n_conv_layer-1), 
+                kernel_regularizer=ws_reg3d)(x)
         else:
-            x = c(x)
+            x = Conv3D(
+                filters=self.conv_num_filters[i],
+                kernel_size=self.conv_kernel_sizes[i],
+                strides=self.conv_strides[i],
+                padding=self.conv_padding[i],
+                name='conv_' + str(self.n_conv_layer-1))(x)
 
         if self.normalization == 'batch':
             x = BatchNormalization(name='batchnorm_' + str(self.n_conv_layer-1))(x)
