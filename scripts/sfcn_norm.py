@@ -39,105 +39,11 @@ def sfcn_layer_norm(idx, only_evaluate=False, name = 'sfcn_layer_norm'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='layer',
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
-        input_resample='none',
-        use_float16=False,
-        reduce_lr_on_plateau=0.5,
-        batch_size=batch_size, 
-        early_stopping=8,
-        gpu_list = gpu_list,
-        name=name+'_'+str(index))
-
-    generator_batch_size = model.get_batchsize()
-
-    train_gen = VolumeDataGeneratorRegression(
-        sample_df=train_df, 
-        sample_stats_df=train_stats,
-        batch_size=generator_batch_size, 
-        #num_reg_classes=num_output, 
-        dim=input_dim,
-        input_preprocessing=input_preprocess,
-        output_preprocessing=output_preprocessing, 
-        idps_labels=idps_labels)
-
-    scaler_instance = train_gen.get_scaler_instance()
-
-    valid_gen = VolumeDataGeneratorRegression(
-        sample_df=valid_df, 
-        sample_stats_df=train_stats,
-        batch_size=generator_batch_size, 
-        #num_reg_classes=num_output, 
-        dim=input_dim,
-        input_preprocessing=input_preprocess,
-        output_scaler=scaler_instance,
-        shuffle=False, 
-        idps_labels=idps_labels)
-    
-    if not only_evaluate:
-        start = time.time()
-        model.compile(learning_rate=1e-3, optimizer='Adam')
-        model.train_generator(train_gen, valid_gen, epochs=epochs_num, workers=cpu_workers, verbose=2)
-
-        time_elapsed = time.time() - start
-        print('time elapsed (hours): {}'.format(time_elapsed/(3600)))
-
-
-    model.load_weights('weights/checkpoint_' + name + '_' + str(index))
-
-    test_df = pd.read_csv('csv/split_test.csv', index_col='id').dropna()
-
-    test_gen = VolumeDataGeneratorRegression(
-        sample_df=test_df, 
-        sample_stats_df=train_stats,
-        batch_size=generator_batch_size, 
-        #num_reg_classes=num_output, 
-        dim=input_dim,
-        input_preprocessing=input_preprocess,
-        output_scaler=scaler_instance, 
-        idps_labels=idps_labels,
-        shuffle=False
-    )
-    model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)  
-    
-
-def sfcn_no_norm(idx, only_evaluate=False, name = 'sfcn_no_norm'):
-    index=int(idx)
-
-    batch_size = 8
-    gpu_list =  [4,5,6,7]
-    cpu_workers = 8
-    epochs_num = 64
-    input_preprocess = 'standardize'
-    output_preprocessing = 'quantile-normal'
-
-    idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
-    idps_labels = [str(l) for l in idps_labels]
-
-    train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
-
-    valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
-
-    input_dim = [160, 192, 160]
-    num_output = len(idps_labels)
-
-    model = SFCN(
-        input_dim=[160, 192, 160, 1], 
-        output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 256, 256], 
-        conv_kernel_sizes=[3, 3, 3, 3, 3, 1], 
-        conv_strides=[1, 1, 1, 1, 1, 1],
-        conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
-        pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
-        normalization='none',
-        dropout=False,
-        softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
@@ -227,12 +133,12 @@ def sfcn_group_norm4(idx, only_evaluate=False, name = 'sfcn_group_norm4'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='group',
         groupnorm_n=4,
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
@@ -322,12 +228,12 @@ def sfcn_group_norm8(idx, only_evaluate=False, name = 'sfcn_group_norm8'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='group',
         groupnorm_n=8,
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
@@ -417,12 +323,12 @@ def sfcn_group_norm16(idx, only_evaluate=False, name = 'sfcn_group_norm16'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='group',
         groupnorm_n=16,
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
@@ -512,13 +418,13 @@ def sfcn_wnorm8(idx, only_evaluate=False, name = 'sfcn_wnorm8'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='group',
         groupnorm_n=8,
         weight_standardization=True,
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
@@ -608,13 +514,13 @@ def sfcn_wnorm16(idx, only_evaluate=False, name = 'sfcn_wnorm16'):
         conv_strides=[1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same', 'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2],
-        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'avg_pool'],
+        pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='group',
         groupnorm_n=16,
         weight_standardization=True,
         dropout=False,
         softmax=False,
-        global_pooling='max_pool',
+        global_pooling='avg_pool',
         input_resample='none',
         use_float16=False,
         reduce_lr_on_plateau=0.5,

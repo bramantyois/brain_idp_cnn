@@ -7,6 +7,9 @@ from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow_addons.layers import GroupNormalization, WeightNormalization
 from tensorflow.distribute import MirroredStrategy
+
+from model.conv3dwithws import Conv3DWithWeightStandardization
+
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 import pandas as pd
@@ -158,12 +161,12 @@ class SFCN:
 
         for i in range(self.n_conv_layer-1):            
             if self.weight_standardization:
-                x = Conv3D(
+                x = Conv3DWithWeightStandardization(
                     filters=self.conv_num_filters[i],
                     kernel_size=self.conv_kernel_sizes[i],
                     strides=self.conv_strides[i],
                     padding=self.conv_padding[i],
-                    name='conv_' + str(i), kernel_regularizer=ws_reg3d)(x)
+                    name='conv_' + str(i))(x)
             else:
                 x = Conv3D(
                     filters=self.conv_num_filters[i],
@@ -178,7 +181,7 @@ class SFCN:
             elif self.normalization == 'layer':
                 x = LayerNormalization(name='layernorm_' + str(i))(x)
             elif self.normalization == 'group':
-                x = GroupNormalization(name='layernorm_' + str(i), groups=self.groupnorm_n)(x)
+                x = GroupNormalization(name='groupnorm_' + str(i), groups=self.groupnorm_n)(x)
             
             if self.pooling_type[i] == 'avg_pool':
                 x = AveragePooling3D(pool_size=self.pooling_size[i], name='avgpool_' + str(i))(x)
@@ -187,22 +190,13 @@ class SFCN:
             
             x = Activation(self.activation, name='activation_' + str(i))(x)
 
-        c = Conv3D(
-            filters=self.conv_num_filters[-1],
-            kernel_size=self.conv_kernel_sizes[-1],
-            strides=self.conv_strides[-1],
-            padding=self.conv_padding[-1],
-            name='conv_' + str(self.n_conv_layer-1)
-            )
-
         if self.weight_standardization:
-            x = Conv3D(
+            x = Conv3DWithWeightStandardization(
                 filters=self.conv_num_filters[i],
                 kernel_size=self.conv_kernel_sizes[i],
                 strides=self.conv_strides[i],
                 padding=self.conv_padding[i],
-                name='conv_' + str(self.n_conv_layer-1), 
-                kernel_regularizer=ws_reg3d)(x)
+                name='conv_' + str(self.n_conv_layer-1))(x)
         else:
             x = Conv3D(
                 filters=self.conv_num_filters[i],
@@ -230,7 +224,6 @@ class SFCN:
             x = Dropout(rate=self.dropout_rate, name='dropout_'+str(self.n_conv_layer))(x)
 
         x = Conv3D(filters=self.output_dim, kernel_size=1, name='conv_'+str(self.n_conv_layer))(x)
-        
         x = Flatten()(x)
         
         if self.softmax:
