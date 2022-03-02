@@ -46,7 +46,7 @@ class SFCN:
         use_float16=False,
         gpu_list = range(8),
         name='SFCN'):
-        """_summary_
+        """CNN model for volume regression based on SFCN. 
 
         Parameters
         ----------
@@ -192,17 +192,17 @@ class SFCN:
 
         if self.weight_standardization:
             x = Conv3DWithWeightStandardization(
-                filters=self.conv_num_filters[i],
-                kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
+                filters=self.conv_num_filters[self.n_conv_layer-1],
+                kernel_size=self.conv_kernel_sizes[self.n_conv_layer-1],
+                strides=self.conv_strides[self.n_conv_layer-1],
+                padding=self.conv_padding[self.n_conv_layer-1],
                 name='conv_' + str(self.n_conv_layer-1))(x)
         else:
             x = Conv3D(
-                filters=self.conv_num_filters[i],
-                kernel_size=self.conv_kernel_sizes[i],
-                strides=self.conv_strides[i],
-                padding=self.conv_padding[i],
+                filters=self.conv_num_filters[self.n_conv_layer-1],
+                kernel_size=self.conv_kernel_sizes[self.n_conv_layer-1],
+                strides=self.conv_strides[self.n_conv_layer-1],
+                padding=self.conv_padding[self.n_conv_layer-1],
                 name='conv_' + str(self.n_conv_layer-1))(x)
 
         if self.normalization == 'batch':

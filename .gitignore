@@ -7,3 +7,5 @@ __pycache__
 *.csv
 *.out
 *.png
+*.pdf
+*.gv

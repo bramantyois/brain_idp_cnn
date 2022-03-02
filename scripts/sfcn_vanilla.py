@@ -4,8 +4,6 @@ import pandas as pd
 from volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
-from keras import backend as K
-
 import sys
 import time
 
@@ -47,7 +45,7 @@ def sfcn_vanilla(idx, only_evaluate=False, name = 'sfcn_vanilla'):
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
-        early_stopping=10,
+        early_stopping=8,
         gpu_list = gpu_list,
         name=name+'_'+str(index),)
 
@@ -102,8 +100,6 @@ def sfcn_vanilla(idx, only_evaluate=False, name = 'sfcn_vanilla'):
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-    
-    K.clear_session()
 
 
 if __name__=='__main__':

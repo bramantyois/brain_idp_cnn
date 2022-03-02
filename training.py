@@ -2,7 +2,7 @@
 # from sfcn_pyr_strides_2 import sfcn_pyramid_strides
 # from sfcn_pyr_avg_plat import sfcn_pyr_avg
 # from sfcn_pyr import sfcn_pyr
-# from sfcn_vanilla import sfcn_vanilla
+from scripts.sfcn_vanilla import sfcn_vanilla
 # from sfcn_pyr_strides_2 import sfcn_pyramid_strides2
 # from sfcn_pyr_strides_3 import sfcn_pyramid_strides3
 
@@ -24,9 +24,9 @@
 # from sfcn_deeper import sfcn_deeper_ks_glomax_us
 # from sfcn_vanilla import sfcn_vanilla
 
-# from sfcn_norm import sfcn_layer_norm
+from scripts.sfcn_norm import sfcn_layer_norm
 from scripts.sfcn_norm import sfcn_group_norm16, sfcn_group_norm8
-from scripts.sfcn_ws import sfcn_ws
+from scripts.sfcn_ws import sfcn_ws, sfcn_ws16
 
 if __name__=='__main__':
 
@@ -172,4 +172,13 @@ if __name__=='__main__':
     # sfcn_wnorm16(0)
     # sfcn_group_norm8(0)
     # sfcn_group_norm16(0)
+    #sfcn_ws16(0)
+
+    # MISSING 
+    sfcn_layer_norm(1)
+
+    sfcn_group_norm8(1)
+    sfcn_group_norm16(1)
+
     sfcn_ws(1)
+    sfcn_ws16(1)
