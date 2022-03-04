@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import sys
 import time
 
-from keras import backend as K
 
 def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopool'):
     index=int(idx)
@@ -102,7 +101,7 @@ def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopoo
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
 
-def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_glomax'):
+def sfcn_deeper(idx, only_evaluate=False, name = 'sfcn_deeper'):
     index=int(idx)
 
     batch_size = 8
@@ -126,8 +125,8 @@ def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_gloma
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 256, 256, 512], 
-        conv_kernel_sizes=[2, 2, 2, 2, 2, 2, 1], 
+        conv_num_filters=[16, 32, 64, 64, 128, 256, 256], 
+        conv_kernel_sizes=[3, 3, 3, 3, 3, 3, 1], 
         conv_strides=[1, 1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same',  'same',  'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2, 2],
@@ -136,7 +135,7 @@ def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_gloma
         dropout=False,
         #dropout_rate=0.5,
         softmax=False,
-        global_average='max_pool',
+        global_pooling='avg_pool',
         use_float16=False,
         reduce_lr_on_plateau=0.5,
         batch_size=batch_size, 
@@ -195,7 +194,7 @@ def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_gloma
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-    K.clear_session()
+
 
 def sfcn_deeper_ks_glomax_us(idx, only_evaluate=False, name = 'sfcn_deeper_ks_glomax_us'):
     index=int(idx)
