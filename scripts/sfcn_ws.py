@@ -24,7 +24,7 @@ def sfcn_ws(idx, only_evaluate=False, name = 'sfcn_ws'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -120,7 +120,7 @@ def sfcn_ws16(idx, only_evaluate=False, name = 'sfcn_ws16'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 

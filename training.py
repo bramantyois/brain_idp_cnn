@@ -28,7 +28,7 @@
 # from scripts.sfcn_norm import sfcn_group_norm16, sfcn_group_norm8
 # from scripts.sfcn_ws import sfcn_ws, sfcn_ws16
 
-from scripts.sfcn_deeper import sfcn_deeper
+from scripts.sfcn_deeper import sfcn_deeper_k2_glomax
 from scripts.sfcn_shallow import sfcn_shallow_3, sfcn_shallow_3_ds
 from scripts.sfcn_vanilla_mod import sfcn_ds
 
@@ -187,7 +187,8 @@ if __name__=='__main__':
     # sfcn_ws(1)
     # sfcn_ws16(1)
 
-    sfcn_deeper(0)
-    sfcn_shallow_3(0)
-    sfcn_shallow_3_ds(0)
-    sfcn_ds(0)
+    #sfcn_deeper(0)
+    # sfcn_shallow_3(0)
+    # sfcn_shallow_3_ds(0)
+    # sfcn_ds(0)
+    sfcn_deeper_k2_glomax(0)

@@ -27,7 +27,7 @@ def sfcn_pyr_avg(idx, only_evaluate=False, name = 'sfcn_pyramid_avg_qn'):
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
     
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     input_dim = [160, 192, 160]
     num_output = len(idps_labels)
@@ -128,7 +128,7 @@ def sfcn_glomax(idx, only_evaluate=False, name = 'sfcn_glomax'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -221,7 +221,7 @@ def sfcn_glomax_ds(idx, only_evaluate=False, name = 'sfcn_glomax_ds'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -315,7 +315,7 @@ def sfcn_ds(idx, only_evaluate=False, name = 'sfcn_ds'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 

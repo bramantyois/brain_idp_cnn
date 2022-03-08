@@ -24,7 +24,7 @@ def sfcn_lfil_shallow_0(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -117,7 +117,7 @@ def sfcn_lfil_shallow_1(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -210,7 +210,7 @@ def sfcn_lfil_shallow_2(idx, only_evaluate=False, name = 'sfcn_large_nfil_shallo
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -303,7 +303,7 @@ def sfcn_lfil_shallow_0_glomax(idx, only_evaluate=False, name = 'sfcn_large_nfil
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -397,7 +397,7 @@ def sfcn_lfil_shallow_ds_glomax(idx, only_evaluate=False, name = 'sfcn_large_nfi
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -493,7 +493,7 @@ def sfcn_shallow_3(idx, only_evaluate=False, name='sfcn_shallow_3'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
@@ -586,7 +586,7 @@ def sfcn_shallow_3_ds(idx, only_evaluate=False, name='sfcn_shallow_3_ds'):
     idps_labels = [str(l) for l in idps_labels]
 
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 

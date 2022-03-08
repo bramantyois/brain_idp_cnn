@@ -7,39 +7,39 @@ import matplotlib.pyplot as plt
 import sys
 import time
 
+batch_size = 8
+gpu_list =  [4,5,6,7]
+cpu_workers = 8
+epochs_num = 64
+input_preprocess = 'standardize'
+output_preprocessing = 'quantile-normal'
 
-def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopool'):
-    index=int(idx)
+idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
+idps_labels = [str(l) for l in idps_labels]
 
-    batch_size = 8
-    gpu_list =  [4,5,6,7]
-    cpu_workers = 8
-    epochs_num = 64
-    input_preprocess = 'standardize'
-    output_preprocessing = 'quantile-normal'
+train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
+train_stats = pd.read_csv('csv/train_global_stats.csv')
 
-    idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
-    idps_labels = [str(l) for l in idps_labels]
+valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
 
-    train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+input_dim = [160, 192, 160]
+num_output = len(idps_labels)
 
-    valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
-
-    input_dim = [160, 192, 160]
-    num_output = len(idps_labels)
+def sfcn_deeper_k2_glomax(idx, only_evaluate=False, name = 'sfcn_deeper_k2_glomax'):
+    index=int(idx)   
 
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
-        conv_num_filters=[32, 64, 64, 128, 256, 256, 512], 
-        conv_kernel_sizes=[2, 2, 2, 2, 2, 2, 1], 
+        conv_num_filters=[16, 32, 64, 64, 128, 256, 256], 
+        conv_kernel_sizes=[3, 3, 3, 3, 3, 3, 1], 
         conv_strides=[1, 1, 1, 1, 1, 1, 1],
         conv_padding=['same', 'same', 'same', 'same',  'same',  'same', 'valid'],
         pooling_size=[2, 2, 2, 2, 2, 2],
         pooling_type=['max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool', 'max_pool'],
         normalization='batch',
         dropout=False,
+        global_pooling='max_pool',
         #dropout_rate=0.5,
         softmax=False,
         use_float16=False,
@@ -47,7 +47,7 @@ def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopoo
         batch_size=batch_size, 
         early_stopping=8,
         gpu_list = gpu_list,
-        name=name+'_'+str(index),)
+        name=name+'_'+str(index))
 
     generator_batch_size = model.get_batchsize()
 
@@ -103,24 +103,6 @@ def sfcn_deeper_k2_nopool(idx, only_evaluate=False, name = 'sfcn_deeper_k2_nopoo
 
 def sfcn_deeper(idx, only_evaluate=False, name = 'sfcn_deeper'):
     index=int(idx)
-
-    batch_size = 8
-    gpu_list =  [4,5,6,7]
-    cpu_workers = 8
-    epochs_num = 64
-    input_preprocess = 'standardize'
-    output_preprocessing = 'quantile-normal'
-
-    idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
-    idps_labels = [str(l) for l in idps_labels]
-
-    train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
-
-    valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
-
-    input_dim = [160, 192, 160]
-    num_output = len(idps_labels)
 
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
@@ -199,24 +181,6 @@ def sfcn_deeper(idx, only_evaluate=False, name = 'sfcn_deeper'):
 def sfcn_deeper_ks_glomax_us(idx, only_evaluate=False, name = 'sfcn_deeper_ks_glomax_us'):
     index=int(idx)
 
-    batch_size = 8
-    gpu_list =  [4,5,6,7]
-    cpu_workers = 8
-    epochs_num = 64
-    input_preprocess = 'standardize'
-    output_preprocessing = 'quantile-normal'
-
-    idps_labels = pd.read_csv('csv/idps_desc.csv')['id'].to_list()
-    idps_labels = [str(l) for l in idps_labels]
-
-    train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
-
-    valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
-
-    input_dim = [160, 192, 160]
-    num_output = len(idps_labels)
-
     model = SFCN(
         input_dim=[160, 192, 160, 1], 
         output_dim=num_output,
@@ -290,4 +254,3 @@ def sfcn_deeper_ks_glomax_us(idx, only_evaluate=False, name = 'sfcn_deeper_ks_gl
         shuffle=False
     )
     model.evaluate_generator(test_gen, filename=name + '_test', workers=cpu_workers)
-    K.clear_session()

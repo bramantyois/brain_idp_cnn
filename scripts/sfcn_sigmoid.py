@@ -31,7 +31,7 @@ def sfcn_sigmoid(idx, only_evaluate=False, name = 'sfcn_sigmoid_qn'):
     train_df = pd.read_csv('csv/split_train.csv', index_col='id').dropna()
     valid_df = pd.read_csv('csv/split_valid.csv', index_col='id').dropna()
     
-    train_stats = pd.read_csv('csv/train_stats.csv', index_col='id')
+    train_stats = pd.read_csv('csv/train_global_stats.csv')
 
     input_dim = [160, 192, 160]
     num_output = len(idps_labels)
