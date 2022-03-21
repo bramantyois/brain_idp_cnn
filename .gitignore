@@ -9,3 +9,12 @@ __pycache__
 *.png
 *.pdf
 *.gv
+*.gz
+*.fls
+*.log
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.xml
