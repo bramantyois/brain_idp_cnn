@@ -79,11 +79,25 @@
     Batch normalization also acts as a regularizer. 
     However, batch normalization requires a rather large number of batches which can be a technical difficulty when having structural-MRI images. 
     The alternatives for smaller batch sizes are group standardization and weight normalization.
+
+    The CNN eventually would be fitted to pairs of structural magnetic resonance images (S-MRI) and IDPs. 
+    The S-MRIs are three-dimensional image data with a size of 190x210x190. 
+    Preprocessing steps such as standardization and cropping were applied to keep the global mean to zero and throw out zero-valued voxels. 
+    The output of the network was a vector of the size of the IDPs values. 
+    In this experiment, we picked 1421 IDPS values in which distributions were not too skewed. 
+    The values also were transformed by quantile transform with the number of quantiles 1000 following a normal distribution. 
+
+    The S-MRI dataset contained 10320 images which were then split into 60\% of the training set, 20\% of the validation set, and the remaining for the test set. 
+    Each model in this experiment was trained using the training set. 
+    For each training epoch, mean squared error(MSE) of the validation set was computed and if there was no improvement for at least 8 epochs, the training would stop. 
+    The model would be kept when its validation set’s MSE was the lowest.
+
+    The experiments were conducted in a GPU cluster with 8 GTX 1080 ti totaling almost 100 gigabytes of GPU memory. 
+    In general, training on 3D S-MRI data was exhaustive in terms of memory and there was a possibility of a bottleneck in data loading. 
+    Models were implemented using Keras and Tensorflow.
     \section*{Results}
     lorem
     \section*{Conclussions and Summary}
-
-    \section*{References}
 
     \printbibliography
 \end{document}
