@@ -3,6 +3,9 @@
 \usepackage{biblatex}
 \addbibresource{bib.bib}
 
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
 \title{Brain Image-Derived Phenotypes Regression Using Convolutional Neural Network}
 
 \author{Bramantyo Ibrahim Supriyatno}
@@ -19,7 +22,6 @@
         We found that kernel size, strides number and deeper network have profound effects on the performance especially in gray-white contrast related phenotypes. 
     \end{abstract}
     
-
     \section*{Introduction}
     The convolutional neural network (CNN) has been proven very successful for many computer vision applications. 
     AlexNet\cite{alexnet} successfully reached state-of-the-art performance for image classification tasks on the ImageNet dataset. 
@@ -53,6 +55,13 @@
     
 
     \section*{Method}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[scale=0.8]{nn}
+        \centering
+        \caption{Simple-fully connected network. This model were used as the baseline for the entire study}
+        \label{fig:sfcn}
+    \end{figure}
     CNN was initially proposed by LeCun\cite{lecun} in his groundbreaking paper. 
     The algorithm combines kernel convolution and gradient-based learning which updates the kernel weights. 
     The kernel convolution method reduces the number of parameters. 
@@ -96,8 +105,132 @@
     In general, training on 3D S-MRI data was exhaustive in terms of memory and there was a possibility of a bottleneck in data loading. 
     Models were implemented using Keras and Tensorflow.
     \section*{Results}
-    lorem
-    \section*{Conclussions and Summary}
+    \begin{table*}[h!]
+        \begin{tabular}{||l c c c c||}
+            \hline
+            Model & MSE & Avg R2 & Num. Parameters & Num. Epochs \\
+            \hline\hline
+            vanilla & 0.84 & 0.19 & 3,044,301 & 18 \\
+            \hline
+            pyramid & 0.76 & 0.26 & 1,707,405 & 30 \\
+            \hline
+            avg pooling & 1.08 & -0.05 & 1,707,405 & 8 \\
+            \hline
+            strides pooling (size: 2) & 0.76 & 0.27 & 1,707,405 & 38 \\
+            \hline
+            strides pooling (size: 3) & 0.75 & 0.27 & 855,437 & 27 \\
+            \hline
+            kernel size: 2 & 0.75 & 0.27 & 811,821 & 25 \\
+            \hline
+            kernel size: 4 & 0.79 & 0.23 & 3,451,437 & 39 \\
+            \hline
+            downsampled & 0.71 & 0.31 & 1,707,405 & 26 \\
+            \hline
+            deeper & 0.68 & 0.34 & 1,720,877 & 31 \\
+            \hline
+            group norm: 8 & 0.78 & 0.25 & 1,705,805 & 56 \\
+            \hline
+            group norm: 16 & 0.80 & 0.23 & 1,705,805 & 43 \\
+            \hline
+            group norm ws: 8 & 0.74 & 0.29 & 1,705,805 & 49 \\
+            \hline
+            group norm ws: 16 & 0.80 & 0.23 & 1,705,805 & 44 \\ 
+            \hline
+            max global pooling & 0.65 & 0.37 & 1,707,405 & 38 \\
+            \hline
+            deeper max pool & 0.64 & 0.38 & 1,720,877 & 35 \\
+            \hline
+        \end{tabular}
+        \caption{Mean-squared errors and average R2 scores for all models in this report}
+        \label{table:1}
+    \end{table*}
+    
 
+    \subsection*{Architectural Modification}
+    The original SFCN has a bottleneck structure that limits the number of features to only 64 (figure). 
+    We then modified the number of filters so that the network has a pyramidal structure as suggested by Smith\cite*[]{smith}.  
+    We swapped the number of filters at the 3D 3x3x3 c and 3D 1x1x1 convolutional blocks so that we have this structure (32-64-64-128-256-256-1421). 
+    This modification also reduced the number of parameters to almost half due to the less number of filters at the 3D 3x3x3 convolutional block.
+
+    The pyramidal model outperformed vanilla SFCN in all phenotype groups. 
+    The model also showed significant improvement in gray-white matter contrast (GWC), mean thickness, and mean intensity. 
+    This significant improvement could be explained by the number of extracted features just before the last 1x1x1 convolutional layer. 
+    The bottleneck structure in the vanilla model was intended for age prediction, in which the size of the final output vector is smaller than the number of extracted features. 
+    Therefore bottleneck structure tends to be not suitable for IDPs prediction.
+
+    \subsection*{Kernel Size}
+    Previous results in structural modification hinted that better performance can be achieved by a smaller number of parameters. 
+    SFCN has 5 convolutional layers that use 3x3x3 convolutional kernels. These kernels can be resized and consequently reduced or increased the number of parameters. 
+
+    Using 2x2x2 kernels improved the r2 score for gray-white matter contrast and mean thickness although there was a slight decrease in volume and area-related phenotypes. 
+    Smaller kernels also reduced the number of parameters by half.  
+    Conversely, using a bigger kernel size had an adverse effect on almost all phenotypes despite a staggering increase in the number of parameters.
+
+    The results hinted that not only a big number of parameters are not necessary but also the amount of overlapping receptive fields is important. 
+    Gray-white matter contrast and thickness-related phenotypes were especially in favor of smaller overlap. 
+    On the other hand, a bigger kernel would increase the number of voxels that were shared by many kernels. 
+    As an example, the 4x4x4 kernel would share 63 voxels. 
+    This means that each filter would receive similar data thus it became hard to extract unique features out of the data.
+
+    \subsection*{Downsampling and Pooling Method}
+    Downsampling can be done by adding a pooling layer or setting up bigger strides on the convolution layer. 
+    The amount of downsampling is controlled by the pooling size and the strides number respectively. 
+    When using a pooling layer, two popular choices are maximum pooling and average pooling.  
+
+    Average pooling did not perform well. 
+    It also did not seem to learn. 
+    The reason is that average pooling would weigh all convolutional output by the same value thus increasing the chance of important features being treated equally. 
+    Although it could be compensated by increasing the corresponding weight on the kernel, it would take more time and could need different learning rate scheduling to train the model.
+
+    On the other hand, max-pooling only selects the biggest value and only updates the weight corresponding to that. 
+    Since the training data are registered, locations of one particular brain area are not different image by image. 
+    This property allows max pooling to extract important features more accurately and faster. 
+    Additionally, maximum pooling mitigates the overlapping effect.
+
+    Downsampling using strides performed on par with the baseline despite less computation. 
+    Strides number two especially predicted gray-white matter contrast better than the baseline. 
+    Strides number three also performs slightly better even though there were significant reductions in the number of parameters due to a bigger downsampling scale. 
+    The result confirms that gray-white matter contrasts are sensitive to the amount of overlapping.
+
+    Notice that strides number three also reduced the size of the voxels when entering the global pooling layer. 
+    A smaller global pooling size would possibly reduce the overlapping effect observed in the previous experiment on kernel size and pooling types
+
+    \subsection*{Global Pooling Size and Type}
+    Previous experiments on downsampling methods hinted at the idea that a smaller number of voxels when entering a global pooling layer was beneficial. 
+    Global pooling size is determined by the size of the input and the depth of the network. 
+    Practically, it is possible to add a new pooling layer or convolutional block just after the input layer to reduce the global pooling size. 
+
+    In general, both smaller input and deeper networks were better compared to the baseline in almost all phenotypes. 
+    Adding a maximum pooling layer at the input would throw out most of the information contained in the image. 
+    However, picking up maximum value on the voxels will sharpen the image, thus it would make it easier for the network to extract patterns. 
+    A deeper network on the other hand had to find suitable weights for the whole information. 
+    This would give better results with the cost of training time and computation.
+
+    The whole experiment also concluded that there was some unnecessary information at the global pooling that can be omitted.
+    The unnecessary information can be further selected by choosing different global pooling types. 
+    Average global pooling would weight uniformly while maximum pooling would choose the biggest value. 
+    Maximum pooling improves all the phenotypes. 
+    This also confirms the idea of unnecessary information is present just before the global pooling
+
+    \subsection*{Normalization Method}
+    One particular problem when working with huge structural MRI data is the limitation of GPU memory. 
+    This affects the number of batches when feed forwarding and has a direct implication when choosing the normalization method. 
+    Batch normalization with size 8 seems to be the best choice when having adequate memory. 
+    However, group normalization with weight standardization with batch size 8, which can be used when having limited memory, has similar performance despite a longer training time. 
+    Notice that bigger groups did not always deliver a better performance. 
+    Additionally, group normalization seemed to increase performance for gray-white matter contrast as well as mean thickness.
+
+    \section*{Conclussions and Summary}
+    When repurposing SOTA implementation, it is recommended to start modifying the deepest layer first. 
+    Changing the number of extracted features seems to be beneficial especially when the target outputs are bigger than the number of extracted features. 
+    In addition, changing the global pooling type could be necessary when having large dimensional data.
+
+    Furthermore, deeper networks perform significantly better compared to the shallower ones. 
+    A deeper network minimizes the size of the volumes when entering the global pooling layer which is also found to be beneficial. 
+    However, increasing the number of parameters could lengthen the training time.
+    
+    Design choices also affect the model performance on certain phenotypes. 
+    Minimizing overlap by increasing strides value or using a smaller kernel size seems to be beneficial for predicting gray-white matter contrast and mean thickness-related phenotypes.
+    
     \printbibliography
 \end{document}
