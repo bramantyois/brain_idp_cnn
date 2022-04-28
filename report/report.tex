@@ -154,9 +154,9 @@
             Pyramidal structure improved all phenotypes prediction.}
         \label{fig:vanillapyr}
     \end{figure}
-    The original SFCN has a bottleneck structure that limits the number of features to only 64 (figure). 
+    The original SFCN has a bottleneck structure that limits the number of features to only 64 (Figure \ref{fig:sfcn}). 
     We then modified the number of filters so that the network has a pyramidal structure as suggested by Smith\cite*[]{smith}.  
-    We swapped the number of filters at the 3D 3x3x3 c and 3D 1x1x1 convolutional blocks so that we have this structure (32-64-64-128-256-256-1421). 
+    We swapped the number of filters at the fourth 3D 3x3x3 and sixth 1D 1x1x1 layer convolutional blocks so that we have this structure (32-64-64-128-256-256-1421). 
     This modification also reduced the number of parameters to almost half due to the less number of filters at the 3D 3x3x3 convolutional block.
 
     The pyramidal model outperformed vanilla SFCN in all phenotype groups as shown in figure \ref{fig:vanillapyr}. 
@@ -179,17 +179,18 @@
     \end{figure}
 
     Previous results in structural modification hinted that better performance can be achieved by a smaller number of parameters. 
-    SFCN has 5 convolutional layers that use 3x3x3 convolutional kernels. These kernels can be resized and consequently reduced or increased the number of parameters. 
+    SFCN has 5 convolutional layers that use 3x3x3 convolutional kernels. 
+    These kernels can be resized and consequently reduced or increased the number of parameters. 
 
     Using 2x2x2 kernels improved the r2 score for gray-white matter contrast and mean thickness although there was a slight decrease in volume and area-related phenotypes. 
     Smaller kernels also reduced the number of parameters by half.  
-    Conversely, using a bigger kernel size had an adverse effect on almost all phenotypes despite a staggering increase in the number of parameters.
+    Conversely, bigger kernel size had an adverse effect on almost all phenotypes despite a staggering increase in the number of parameters.
 
-    The results hinted that not only a big number of parameters are not necessary but also the amount of overlapping receptive fields is important. 
+    The results hinted that not only a big number of parameters were not necessary but also the amount of overlapping receptive fields was important. 
     Gray-white matter contrast and thickness-related phenotypes were especially in favor of smaller overlap. 
-    On the other hand, a bigger kernel would increase the number of voxels that were shared by many kernels. 
-    As an example, the 4x4x4 kernel would share 63 voxels. 
-    This means that each filter would receive similar data thus it became hard to extract unique features out of the data.
+    On the other hand, bigger kernel would increase the number of voxels that were shared by many kernels. 
+    As an example, the 4x4x4 kernel will share 63 voxels. 
+    This means that each filter would receive similar data thus it becomes hard to extract unique features out of the data.
 
 
     \subsection*{Downsampling and Pooling Method}
@@ -208,15 +209,14 @@
     The amount of downsampling is controlled by the pooling size and the strides number respectively. 
     When using a pooling layer, two popular choices are maximum pooling and average pooling.  
 
-    Average pooling did not perform well. 
-    It also did not seem to learn. 
-    The reason is that average pooling would weigh all convolutional output by the same value thus increasing the chance of important features being treated equally. 
+    Average pooling did not perform well and did not seem to learn. 
+    Average pooling would weigh all convolutional output by the same value thus increasing the chance of important features being treated equally. 
     Although it could be compensated by increasing the corresponding weight on the kernel, it would take more time and could need different learning rate scheduling to train the model.
 
-    On the other hand, max-pooling only selects the biggest value and only updates the weight corresponding to that. 
-    Since the training data are registered, locations of one particular brain area are not different image by image. 
-    This property allows max pooling to extract important features more accurately and faster. 
-    Additionally, maximum pooling mitigates the overlapping effect.
+    On the other hand, max-pooling only selected the biggest value and only updates the weight corresponding to that. 
+    Since the training data were registered, locations of one particular brain area were not different image by image. 
+    This property allowed max pooling to extract important features more accurately and faster. 
+    Additionally, maximum pooling mitigated the overlapping effect.
 
     Downsampling using strides performed on par with the baseline despite less computation. 
     Strides number two especially predicted gray-white matter contrast better than the baseline. 
