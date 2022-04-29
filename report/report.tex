@@ -17,9 +17,9 @@
     \begin{abstract}
         The use of convolutional neural networks (CNN) for computer vision problems has been significantly successful. 
         However, there is still a debate whether a complex non-linear model can outperform linear models for brain imaging data. 
-        Knowing how each component of CNN affects its performance would be beneficial in order to address this debate. 
+        Knowing how each component of CNN affects its performance would be beneficial to addressing this debate. 
         In this project, we examine how each component of CNN contributes to the overall performance of the model in predicting brain image-derived phenotypes(IDPs). 
-        We found that kernel size, strides number and deeper network have profound effects on the performance especially in gray-white contrast and mean thickness related phenotypes. 
+        We found that kernel size, strides number, and deeper network have profound effects on the performance, especially in gray-white contrast and mean thickness-related phenotypes.
     \end{abstract}
     
     \section*{Introduction}
@@ -28,18 +28,18 @@
     Since then, the popularity of CNN has been rapidly growing.
     
     The use of CNN in brain imaging data has been studied likewise. 
-    Wen\cite{wen} reported that three-dimensional structural magnetic resonance image (sMRI) CNN performs quite well for Alzheimer's disease. 
+    Wen\cite{wen} reported that three-dimensional structural magnetic resonance image (sMRI) CNN performs quite well for detecting Alzheimer's disease. 
     However, he also reported that the CNN model did not perform better than the support vector machine (SVM) model. 
     Peng\cite{peng} also studied the use of CNN on predicting age. He proposed a shallow and straightforward CNN model that achieved a good result. 
     Schulz\cite{schulz} studied the influence of model complexity and sample size on age prediction. 
     He demonstrated that deep networks did not achieve better results compared to standard machine learning algorithms. 
     However, a study by Abrol\cite{abrol} reported the contrary. 
     He argued that complicated features could be extracted by the presence of nonlinearity in the deep learning algorithm  
-    although the CNN model that he used was slightly different to Peng and Schulz. 
+    although the CNN model that he used was slightly different from Peng and Schulz. 
         
     The architectural design differences used in the previous works prohibit an impartial comparison. 
     Therefore, there is a need to systematically study how each component in CNN affected its performance. 
-    The effect of kernel size, strides number, number of layers, pooling types and normalization methods are among things that should be studied.
+    The effect of kernel size, strides number, number of layers, pooling types, and normalization methods are among the hyperparameters that should be studied.
     
     The effect of design choices of CNN for non brain images has been well-studied. 
     Smith\cite{smith} presented a guideline for designing CNN. 
@@ -47,7 +47,7 @@
     Lathuiliere\cite{lath} specifically studied the effect on regression tasks. 
     He suggested modifying the last fully connected layer before the output when using state-of-the-art (SOTA) architectures for different applications.
 
-    Measuring performance only on one-dimensional prediction task would constrain the CNN to only exploit features that are significant for the task. 
+    Measuring performance only on a one-dimensional prediction task would constrain the CNN to only exploit features that are significant for the task. 
     This would force the algorithm to extract complex features and hinder its ability to distill more universal features. 
     Therefore predicting image-derived phenotypes (IDPs) would be more suitable for this study. 
     IDPs are phenotypes related to volumes, areas, thickness, gray-white contrast, and intensities in a certain part or region of the brain. 
@@ -58,7 +58,8 @@
         \centering
         \includegraphics[scale=0.8]{nn}
         \centering
-        \caption{Tensor view of simple-fully connected network with corresponding filter number for each layer. Modified version of this model was used as the baseline for the entire study}
+        \caption{
+            Tensor view of modified version of simple-fully connected network with corresponding filter number for each block. This model was used as the baseline for the entire study}
         \label{fig:sfcn}
     \end{figure}
     \begin{table*}[h!]
@@ -106,42 +107,48 @@
     The use of backpropagation allows kernels to extract similar patterns across datasets. 
     These properties make the algorithm suitable for many computer vision problems such as optical character and object recognition.
 
-    In general, the modern CNN block comprises a convolutional layer, activation function, pooling layer and normalization layer. 
-    The convolutional layer has several parameters that dictates how it will be applied to the data. 
-    Kernel size determines how big the kernel patch will be. 
-    Bigger kernel size would allow more complex patterns in trade of increasing number of parameters. 
+    Modern CNN block comprises a convolutional layer, activation function, pooling layer, and normalization layer. 
+    In the convolutional layer, parameter kernel size determines how big the kernel patch will be. 
+    A bigger kernel size would allow more complex patterns in trade of an increasing number of parameters. 
     Strides number determine how much overlapping region each convolution will share. 
-    Bigger stride number will reduce overlap although a larger number will eventually result in loss of information. 
+    A larger stride number will reduce overlap, although it will eventually result in loss of information. 
     Strides number also determines the output size of the convolution. 
-    Strides number of 2 will halve the output size.
+    For example, strides number of 2 will halve the output size.
 
-    Convolutional layer is often followed by pooling layer. 
-    The function of the pooling layer is to select or combine the convolution output while reducing the size of it. 
-    The downsampling properties of the pooling layer can also be done by setting a proper strides number although algorithmically different. 
-    The most common type of pooling is maximum pooling which picks the maximum value. 
-    Another type of pooling is average pooling which takes the average value of the area. 
+    A pooling layer often follows convolutional layer. 
+    The purpose of the pooling layer is to select or combine the convolution output while reducing its size. 
+    Downsampling can also be done by setting a proper strides number, despite algorithmically different. 
+    The most common type of pooling is maximum pooling which picks the maximal value. 
+    Another type of pooling is average pooling which takes the average value of the area.
 
-    Batch normalization normalizes the output value across the batch. 
-    Batch normalization mitigates the effect of distribution shift across different batches during training. 
-    Batch normalization also acts as a regularizer. 
-    However, batch normalization requires a rather large number of batches which can be a technical difficulty when having structural-MRI images. 
+    Afterwards, normalization layer is sometimes applied. Batch normalization normalizes the output value across the batch. 
+    It also mitigates the effect of distribution shift across different input batches during training. 
+    Batch normalization also acts as a regularizer.   
+    However, batch normalization requires a large number of inputs per batch. 
+    This can be a technical difficulty when having structural-MRI data. 
     The alternatives for smaller batch sizes are group standardization and weight normalization.
 
-    In tthis experiment, The CNN would be fitted to pairs of structural magnetic resonance images (S-MRI) and IDPs. 
+    This experiment studied how the hyperparameters affected the CNN's performance. 
+    We chose a modified simple-fully connected network (SFCN) (Figure \ref{fig:sfcn}) as the baseline. 
+    Hyperparameter modifications were applied then on this model. 
+    Pairs of S-MRIs and IDPs values were used to train the network. 
     The S-MRIs are three-dimensional image data with a size of 190x210x190. 
-    Preprocessing steps such as standardization and cropping were applied to keep the global mean to zero and throw out zero-valued voxels. 
-    The output of the network was a vector of the size of the IDPs values. 
-    In this experiment, we picked 1421 IDPS values in which distributions were not too skewed. 
-    The values also were transformed by quantile transform with the number of quantiles 1000 following a normal distribution. 
+    Preprocessing steps, such as standardization and cropping, were applied to keep the global mean to zero and throw out zero-valued voxels. 
+    The network output was a vector of the size of the IDPs. 
+    In this experiment, we picked 1421 IDPS values which did not have skewed distribution. 
+    These values were also transformed by quantile transform with the number of quantiles 1000 following a normal distribution.
 
-    The S-MRI dataset contained 10320 images which were then split into 60\% of the training set, 20\% of the validation set, and the remaining for the test set. 
-    Each model in this experiment was trained using the training set. 
-    For each training epoch, mean squared error(MSE) of the validation set was computed and if there was no improvement for at least 8 epochs, the training would stop. 
-    The model would be kept when its validation set’s MSE was the lowest.
+    This experiment used S-MRI data from UKBioBanks. 
+    The dataset contained 10320 images which split into 60\% of the training set, 20\% of the validation set, and the remaining for the test set. 
+    For every epoch, the program would take the mean-squared error (MSE) of validation set. 
+    When there was no improvement for eight epochs, the training would stop. 
+    When the training session stopped, the weights correspond to the lowest validation set's MSE would be kept.
 
     The experiments were conducted in a GPU cluster with 8 GTX 1080 ti totaling almost 100 gigabytes of GPU memory. 
-    In general, training on 3D S-MRI data was exhaustive in terms of memory and there was a possibility of a bottleneck in data loading. 
-    Models were implemented using Keras and Tensorflow.
+    In general, training on 3D S-MRI data was exhaustive in terms of memory. 
+    There was also a possibility of a bottleneck in data loading. 
+    Therefore, data loading was performed by the CPU, while feedforwards and back-propagations were done by the GPU. 
+    This experiment used Keras and TensorFlow in python.
     \section*{Results}
     
     \subsection*{Architectural Modification}
