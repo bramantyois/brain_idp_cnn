@@ -8,7 +8,7 @@ from keras import backend as K
 
 import numpy as np
 import pandas as pd
-from volumedatagenerator import VolumeDataGeneratorRegression
+from utils.volumedatagenerator import VolumeDataGeneratorRegression
 import matplotlib.pyplot as plt
 
 import time
