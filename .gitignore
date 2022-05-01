@@ -17,3 +17,4 @@ __pycache__
 *.blg
 *.fdb_latexmk
 *.xml
+*.txt
